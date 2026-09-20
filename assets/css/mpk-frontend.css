@@ -1,0 +1,2021 @@
+/**
+ * Maldives Packages (MPK) - Scoped Frontend Stylesheet
+ * Strictly scoped under .mpk-booking-app
+ * Approved Prefix: mpk-
+ * Strictly forbids TZ / tz prefix.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+	--mpk-primary: #0284c7;
+	--mpk-primary-hover: #0369a1;
+	--mpk-primary-glow: #38bdf8;
+	--mpk-primary-light: rgba(2, 132, 199, 0.08);
+	--mpk-primary-bg-tint: rgba(2, 132, 199, 0.04);
+	--mpk-foreground: #0f172a;
+	--mpk-text: #0f172a;
+	--mpk-text-muted: #64748b;
+	--mpk-bg: #f8fafc;
+	--mpk-card: #ffffff;
+	--mpk-card-muted: #f8fafc;
+	--mpk-border: #e2e8f0;
+	--mpk-border-focus: #0284c7;
+	--mpk-gradient-ocean: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);
+	--mpk-gradient-hero: linear-gradient(180deg, #0284c7 0%, #38bdf8 45%, #bae6fd 85%, #f8fafc 100%);
+	--mpk-gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
+	--mpk-shadow-soft: 0 4px 20px -4px rgba(2, 132, 199, 0.12);
+	--mpk-shadow-elevated: 0 20px 50px -20px rgba(2, 132, 199, 0.25);
+	--mpk-shadow-glow: 0 0 0 4px rgba(56, 189, 248, 0.22), 0 12px 30px -8px rgba(2, 132, 199, 0.35);
+	--mpk-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	--mpk-font-serif: 'Fraunces', 'DM Serif Display', Georgia, Cambria, 'Times New Roman', serif;
+	--mpk-radius-sm: 10px;
+	--mpk-radius-md: 16px;
+	--mpk-radius-lg: 24px;
+	--mpk-radius-xl: 32px;
+}
+
+/* Base Wrapper & Scoping */
+.mpk-booking-app {
+	font-family: var(--mpk-font-sans);
+	color: var(--mpk-text);
+	background-color: transparent;
+	line-height: 1.5;
+	box-sizing: border-box;
+	margin: 0 auto;
+	padding-bottom: 60px;
+	width: 100%;
+	max-width: 1200px;
+	position: relative;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+.mpk-booking-app *,
+.mpk-booking-app *::before,
+.mpk-booking-app *::after {
+	box-sizing: border-box;
+}
+
+/* Animations */
+@keyframes mpkFadeUp {
+	from {
+		opacity: 0;
+		transform: translateY(16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes mpkFloat {
+	0%, 100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(-6px);
+	}
+}
+
+.mpk-booking-app .mpk-animate-fade-up {
+	animation: mpkFadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.mpk-booking-app .mpk-animate-float {
+	animation: mpkFloat 4s ease-in-out infinite;
+}
+
+/* Typography & Headings */
+.mpk-booking-app h1,
+.mpk-booking-app h2,
+.mpk-booking-app h3,
+.mpk-booking-app h4 {
+	font-family: var(--mpk-font-serif);
+	letter-spacing: -0.02em;
+	color: var(--mpk-text);
+}
+
+/* Utility classes */
+.mpk-booking-app .mpk-gradient-ocean {
+	background: var(--mpk-gradient-ocean) !important;
+}
+
+.mpk-booking-app .mpk-gradient-text {
+	background: var(--mpk-gradient-ocean);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+.mpk-booking-app .mpk-tabular {
+	font-variant-numeric: tabular-nums;
+}
+
+/* HERO SECTION */
+.mpk-booking-app .mpk-hero {
+	position: relative;
+	overflow: hidden;
+	background: var(--mpk-gradient-hero);
+	border-radius: var(--mpk-radius-xl);
+	color: #ffffff;
+	padding: 56px 24px 112px;
+	margin-bottom: 0;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-hero {
+		padding: 72px 36px 128px;
+	}
+}
+
+.mpk-booking-app .mpk-hero-bg-img {
+	position: absolute;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	width: 55%;
+	pointer-events: none;
+	background-size: cover;
+	background-position: left center;
+	mask-image: linear-gradient(to right, transparent 0%, black 25%, black 100%);
+	-webkit-mask-image: linear-gradient(to right, transparent 0%, black 25%, black 100%);
+	opacity: 0.95;
+	display: none;
+}
+
+@media (min-width: 768px) {
+	.mpk-booking-app .mpk-hero-bg-img {
+		display: block;
+	}
+}
+
+.mpk-booking-app .mpk-hero-content {
+	position: relative;
+	z-index: 2;
+	max-width: 640px;
+}
+
+.mpk-booking-app .mpk-pill-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	background: rgba(255, 255, 255, 0.18);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	padding: 6px 14px;
+	border-radius: 9999px;
+	font-size: 12px;
+	font-weight: 600;
+	color: #ffffff;
+	letter-spacing: 0.3px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.mpk-booking-app .mpk-hero-title {
+	font-family: var(--mpk-font-serif);
+	font-size: 44px;
+	font-weight: 600;
+	line-height: 1.1;
+	margin: 20px 0 12px;
+	color: #ffffff;
+	letter-spacing: -0.025em;
+	text-shadow: 0 2px 20px rgba(0, 40, 80, 0.35);
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-hero-title {
+		font-size: 58px;
+	}
+}
+
+@media (min-width: 1024px) {
+	.mpk-booking-app .mpk-hero-title {
+		font-size: 68px;
+	}
+}
+
+.mpk-booking-app .mpk-hero-desc {
+	font-size: 16px;
+	line-height: 1.6;
+	color: rgba(255, 255, 255, 0.92);
+	margin: 0;
+	max-width: 520px;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-hero-desc {
+		font-size: 18px;
+	}
+}
+
+/* WIZARD CONTAINER OVERLAP */
+.mpk-booking-app .mpk-wizard-container {
+	position: relative;
+	margin-top: -64px;
+	z-index: 10;
+	padding: 0 16px;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-wizard-container {
+		padding: 0 24px;
+	}
+}
+
+/* STEPPER CARD (Horizontal Flow with Vertical Step Columns) */
+.mpk-booking-app .mpk-stepper-card {
+	background: #ffffff;
+	border: 1px solid var(--mpk-border);
+	border-radius: var(--mpk-radius-lg);
+	box-shadow: var(--mpk-shadow-elevated);
+	padding: 20px 24px;
+	width: 100%;
+}
+
+.mpk-booking-app .mpk-stepper-track {
+	display: flex;
+	align-items: flex-start;
+	width: 100%;
+}
+
+.mpk-booking-app .mpk-step-column {
+	display: flex;
+	flex: 1;
+	align-items: flex-start;
+}
+
+.mpk-booking-app .mpk-step-column:last-child {
+	flex: none;
+}
+
+.mpk-booking-app .mpk-step-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	text-align: center;
+	min-width: 0;
+	cursor: pointer;
+	background: none;
+	border: none;
+	padding: 0;
+}
+
+.mpk-booking-app .mpk-step-circle {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 14px;
+	font-weight: 600;
+	transition: all 0.3s ease;
+	flex-shrink: 0;
+	background: #ffffff;
+	color: var(--mpk-text-muted);
+	border: 1px solid var(--mpk-border);
+}
+
+.mpk-booking-app .mpk-step-column.active .mpk-step-circle {
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	border-color: transparent;
+	box-shadow: var(--mpk-shadow-soft);
+}
+
+.mpk-booking-app .mpk-step-column.completed .mpk-step-circle {
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	border-color: transparent;
+	box-shadow: var(--mpk-shadow-soft);
+}
+
+.mpk-booking-app .mpk-step-text-wrap {
+	display: none;
+	padding: 0 8px;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-step-text-wrap {
+		display: block;
+	}
+}
+
+.mpk-booking-app .mpk-step-label {
+	display: block;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.25;
+	color: var(--mpk-text-muted);
+	white-space: nowrap;
+}
+
+.mpk-booking-app .mpk-step-column.active .mpk-step-label,
+.mpk-booking-app .mpk-step-column.completed .mpk-step-label {
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-step-sub {
+	display: block;
+	font-size: 11px;
+	color: var(--mpk-text-muted);
+	line-height: 1.2;
+	margin-top: 2px;
+	white-space: nowrap;
+}
+
+.mpk-booking-app .mpk-step-connector {
+	flex: 1;
+	height: 2px;
+	background: var(--mpk-border);
+	margin: 18px 10px 0;
+	position: relative;
+	overflow: hidden;
+}
+
+.mpk-booking-app .mpk-step-connector-fill {
+	position: absolute;
+	inset: 0;
+	background: var(--mpk-gradient-ocean);
+	width: 0;
+	transition: width 0.4s ease;
+}
+
+.mpk-booking-app .mpk-step-column.completed + .mpk-step-connector .mpk-step-connector-fill,
+.mpk-booking-app .mpk-step-column.completed .mpk-step-connector-fill {
+	width: 100%;
+}
+
+/* WIZARD CARD & CONTENT AREA */
+.mpk-booking-app .mpk-wizard-card {
+	margin-top: 32px;
+	background: rgba(255, 255, 255, 0.9);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	border: 1px solid var(--mpk-border);
+	border-radius: var(--mpk-radius-lg);
+	box-shadow: var(--mpk-shadow-soft);
+	padding: 24px;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-wizard-card {
+		padding: 36px;
+	}
+}
+
+.mpk-booking-app .mpk-step-pane {
+	display: none;
+}
+
+.mpk-booking-app .mpk-step-pane.active {
+	display: block;
+	animation: mpkFadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* SECTION HEADER */
+.mpk-booking-app .mpk-section-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 20px;
+}
+
+.mpk-booking-app .mpk-section-header h3 {
+	font-family: var(--mpk-font-sans);
+	font-size: 20px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	margin: 0;
+}
+
+.mpk-booking-app .mpk-badge-hint {
+	margin-left: auto;
+	font-size: 12px;
+	color: var(--mpk-text-muted);
+}
+
+/* STEP 1: DESTINATIONS GRID */
+.mpk-booking-app .mpk-locations-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 16px;
+	margin-bottom: 32px;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-locations-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (min-width: 1024px) {
+	.mpk-booking-app .mpk-locations-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+.mpk-booking-app .mpk-location-card {
+	position: relative;
+	border-radius: var(--mpk-radius-lg);
+	overflow: hidden;
+	border: 2px solid transparent;
+	box-shadow: var(--mpk-shadow-soft);
+	cursor: pointer;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	aspect-ratio: 4 / 3;
+	text-align: left;
+	background: #000000;
+	padding: 0;
+	display: block;
+	width: 100%;
+}
+
+.mpk-booking-app .mpk-location-card img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+	display: block;
+}
+
+.mpk-booking-app .mpk-location-card:hover img {
+	transform: scale(1.1);
+}
+
+.mpk-booking-app .mpk-location-overlay {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%);
+	pointer-events: none;
+}
+
+.mpk-booking-app .mpk-location-info {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	padding: 20px;
+	color: #ffffff;
+	z-index: 2;
+	pointer-events: none;
+}
+
+.mpk-booking-app .mpk-location-title {
+	font-size: 18px;
+	font-weight: 600;
+	margin: 0 0 4px;
+	color: #ffffff;
+}
+
+.mpk-booking-app .mpk-location-tagline {
+	font-size: 12px;
+	opacity: 0.9;
+	margin: 0;
+	color: #ffffff;
+}
+
+.mpk-booking-app .mpk-location-check {
+	position: absolute;
+	top: 14px;
+	right: 14px;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	box-shadow: var(--mpk-shadow-glow);
+	z-index: 3;
+}
+
+.mpk-booking-app .mpk-location-card.selected {
+	border-color: var(--mpk-primary);
+	box-shadow: var(--mpk-shadow-glow);
+	transform: scale(1.02);
+}
+
+.mpk-booking-app .mpk-location-card.selected .mpk-location-check {
+	display: flex;
+}
+
+/* NOTE BOX */
+.mpk-booking-app .mpk-info-box {
+	border-radius: var(--mpk-radius-md);
+	border: 1px solid rgba(2, 132, 199, 0.2);
+	background: linear-gradient(90deg, rgba(2, 132, 199, 0.05) 0%, rgba(56, 189, 248, 0.1) 100%);
+	padding: 12px 18px;
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	font-size: 14px;
+	color: var(--mpk-text);
+	margin-bottom: 32px;
+}
+
+.mpk-booking-app .mpk-info-icon {
+	color: var(--mpk-primary);
+	margin-top: 2px;
+	flex-shrink: 0;
+}
+
+/* QUANTITY SELECTORS (Step 1) */
+.mpk-booking-app .mpk-quantities-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 16px;
+	margin-bottom: 24px;
+}
+
+@media (min-width: 768px) {
+	.mpk-booking-app .mpk-quantities-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+.mpk-booking-app .mpk-quantity-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-radius: var(--mpk-radius-md);
+	border: 1px solid var(--mpk-border);
+	background: rgba(255, 255, 255, 0.65);
+	padding: 12px 16px;
+	transition: all 0.2s ease;
+}
+
+.mpk-booking-app .mpk-quantity-card:hover {
+	border-color: rgba(2, 132, 199, 0.4);
+	box-shadow: var(--mpk-shadow-soft);
+}
+
+.mpk-booking-app .mpk-quantity-meta {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.mpk-booking-app .mpk-quantity-icon-badge {
+	width: 40px;
+	height: 40px;
+	border-radius: 12px;
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.mpk-booking-app .mpk-quantity-label {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	margin: 0;
+}
+
+.mpk-booking-app .mpk-quantity-hint {
+	font-size: 12px;
+	color: var(--mpk-text-muted);
+	margin: 2px 0 0;
+}
+
+.mpk-booking-app .mpk-quantity-controls {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.mpk-booking-app .mpk-btn-qty-minus {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	color: var(--mpk-text);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.2s;
+	padding: 0;
+}
+
+.mpk-booking-app .mpk-btn-qty-minus:hover:not(:disabled) {
+	border-color: var(--mpk-primary);
+	color: var(--mpk-primary);
+}
+
+.mpk-booking-app .mpk-btn-qty-minus:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.mpk-booking-app .mpk-quantity-value {
+	min-width: 28px;
+	text-align: center;
+	font-size: 16px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-btn-qty-plus {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	border: none;
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.2s;
+	padding: 0;
+}
+
+.mpk-booking-app .mpk-btn-qty-plus:hover:not(:disabled) {
+	transform: scale(1.05);
+}
+
+.mpk-booking-app .mpk-btn-qty-plus:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+/* TOTAL TRAVELERS BANNER */
+.mpk-booking-app .mpk-travelers-total {
+	border-radius: var(--mpk-radius-md);
+	border: 1px solid rgba(2, 132, 199, 0.2);
+	background: linear-gradient(90deg, rgba(2, 132, 199, 0.05) 0%, rgba(56, 189, 248, 0.1) 100%);
+	padding: 16px 20px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.mpk-booking-app .mpk-travelers-total span:first-child {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-travelers-count {
+	font-size: 24px;
+	font-weight: 700;
+	background: var(--mpk-gradient-ocean);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	font-variant-numeric: tabular-nums;
+}
+
+/* STEP 2: HOTELS LAYOUT */
+.mpk-booking-app .mpk-step2-layout {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 24px;
+}
+
+@media (min-width: 1024px) {
+	.mpk-booking-app .mpk-step2-layout {
+		grid-template-columns: 300px 1fr;
+	}
+}
+
+/* FILTERS SIDEBAR */
+.mpk-booking-app .mpk-filter-sidebar {
+	border-radius: var(--mpk-radius-lg);
+	border: 1px solid var(--mpk-border);
+	background: rgba(255, 255, 255, 0.85);
+	backdrop-filter: blur(12px);
+	padding: 20px;
+	box-shadow: var(--mpk-shadow-soft);
+	align-self: start;
+}
+
+@media (min-width: 1024px) {
+	.mpk-booking-app .mpk-filter-sidebar {
+		position: sticky;
+		top: 24px;
+	}
+}
+
+.mpk-booking-app .mpk-search-box {
+	position: relative;
+	margin-bottom: 20px;
+}
+
+.mpk-booking-app .mpk-search-icon {
+	position: absolute;
+	left: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: var(--mpk-text-muted);
+	pointer-events: none;
+}
+
+.mpk-booking-app .mpk-search-input {
+	width: 100%;
+	height: 44px;
+	border-radius: 12px;
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	padding: 0 14px 0 38px;
+	font-size: 14px;
+	color: var(--mpk-text);
+	outline: none;
+	transition: all 0.2s;
+}
+
+.mpk-booking-app .mpk-search-input:focus {
+	border-color: var(--mpk-primary);
+	box-shadow: 0 0 0 3px var(--mpk-primary-light);
+}
+
+.mpk-booking-app .mpk-filter-accordion-item {
+	margin-bottom: 14px;
+	border-bottom: 1px solid var(--mpk-border);
+	padding-bottom: 14px;
+}
+
+.mpk-booking-app .mpk-filter-accordion-item:last-child {
+	border-bottom: none;
+	margin-bottom: 0;
+	padding-bottom: 0;
+}
+
+.mpk-booking-app .mpk-filter-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	margin-bottom: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.mpk-booking-app .mpk-filter-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14px;
+	color: var(--mpk-text);
+	cursor: pointer;
+	padding: 5px 8px;
+	border-radius: 8px;
+	transition: background 0.15s;
+	margin-bottom: 2px;
+}
+
+.mpk-booking-app .mpk-filter-item:hover {
+	background: rgba(241, 245, 249, 0.7);
+}
+
+.mpk-booking-app .mpk-filter-item input[type="checkbox"] {
+	width: 16px;
+	height: 16px;
+	accent-color: var(--mpk-primary);
+	cursor: pointer;
+	margin: 0;
+}
+
+/* Price Slider */
+.mpk-booking-app .mpk-price-slider-wrap {
+	padding: 6px 4px;
+}
+
+.mpk-booking-app .mpk-price-slider {
+	width: 100%;
+	accent-color: var(--mpk-primary);
+	cursor: pointer;
+}
+
+.mpk-booking-app .mpk-price-range-label {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 12px;
+	font-weight: 500;
+	margin-top: 10px;
+}
+
+.mpk-booking-app .mpk-price-pill {
+	background: #f1f5f9;
+	padding: 3px 8px;
+	border-radius: 6px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+/* HOTEL CARDS & ROOMS */
+.mpk-booking-app .mpk-location-section {
+	margin-bottom: 40px;
+}
+
+.mpk-booking-app .mpk-location-section:last-child {
+	margin-bottom: 0;
+}
+
+.mpk-booking-app .mpk-location-heading {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 20px;
+}
+
+.mpk-booking-app .mpk-heading-bar {
+	width: 4px;
+	height: 36px;
+	border-radius: 9999px;
+	background: var(--mpk-gradient-ocean);
+	flex-shrink: 0;
+}
+
+.mpk-booking-app .mpk-location-heading h3 {
+	font-family: var(--mpk-font-sans);
+	font-size: 20px;
+	font-weight: 600;
+	margin: 0;
+}
+
+.mpk-booking-app .mpk-hotel-card {
+	background: #ffffff;
+	border: 1px solid var(--mpk-border);
+	border-radius: var(--mpk-radius-lg);
+	box-shadow: var(--mpk-shadow-soft);
+	overflow: hidden;
+	margin-bottom: 24px;
+	transition: all 0.3s ease;
+	display: grid;
+	grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+	.mpk-booking-app .mpk-hotel-card {
+		grid-template-columns: 260px 1fr;
+	}
+}
+
+.mpk-booking-app .mpk-hotel-card:hover {
+	box-shadow: var(--mpk-shadow-elevated);
+}
+
+.mpk-booking-app .mpk-hotel-media {
+	position: relative;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+}
+
+@media (min-width: 768px) {
+	.mpk-booking-app .mpk-hotel-media {
+		aspect-ratio: auto;
+		height: 100%;
+	}
+}
+
+.mpk-booking-app .mpk-hotel-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.mpk-booking-app .mpk-hotel-body {
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.mpk-booking-app .mpk-hotel-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 12px;
+}
+
+.mpk-booking-app .mpk-hotel-stars {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-bottom: 4px;
+	color: #facc15;
+}
+
+.mpk-booking-app .mpk-hotel-name {
+	font-family: var(--mpk-font-sans);
+	font-size: 18px;
+	font-weight: 600;
+	margin: 0;
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-hotel-area {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	color: var(--mpk-text-muted);
+	margin: 3px 0 0;
+}
+
+.mpk-booking-app .mpk-review-block-score {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.mpk-booking-app .mpk-review-badge {
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	font-weight: 700;
+	font-size: 14px;
+	padding: 4px 10px;
+	border-radius: 12px;
+}
+
+.mpk-booking-app .mpk-review-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-amenities-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 18px;
+}
+
+.mpk-booking-app .mpk-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: #f1f5f9;
+	color: var(--mpk-text-muted);
+	font-size: 11px;
+	font-weight: 500;
+	padding: 3px 8px;
+	border-radius: 9999px;
+}
+
+/* ROOM ITEMS */
+.mpk-booking-app .mpk-rooms-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.mpk-booking-app .mpk-room-item {
+	border-radius: var(--mpk-radius-md);
+	border: 2px solid var(--mpk-border);
+	background: #ffffff;
+	overflow: hidden;
+	transition: all 0.2s ease;
+}
+
+.mpk-booking-app .mpk-room-item:hover {
+	border-color: rgba(2, 132, 199, 0.4);
+}
+
+.mpk-booking-app .mpk-room-item.selected {
+	border-color: var(--mpk-primary);
+	box-shadow: var(--mpk-shadow-glow);
+	background: rgba(2, 132, 199, 0.03);
+}
+
+.mpk-booking-app .mpk-room-main {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.mpk-booking-app .mpk-room-left {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.mpk-booking-app .mpk-room-checkbox {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	border: 2px solid var(--mpk-border);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.2s;
+	flex-shrink: 0;
+}
+
+.mpk-booking-app .mpk-room-item.selected .mpk-room-checkbox {
+	background: var(--mpk-gradient-ocean);
+	border-color: transparent;
+	color: #ffffff;
+}
+
+.mpk-booking-app .mpk-room-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	margin: 0;
+}
+
+.mpk-booking-app .mpk-room-meal {
+	font-size: 12px;
+	color: var(--mpk-text-muted);
+	margin: 2px 0 0;
+}
+
+.mpk-booking-app .mpk-room-price {
+	text-align: right;
+}
+
+.mpk-booking-app .mpk-room-rate {
+	font-size: 16px;
+	font-weight: 700;
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-room-unit {
+	font-size: 10px;
+	color: var(--mpk-text-muted);
+	display: block;
+}
+
+/* DATE PICKER ACCORDION IN ROOM */
+.mpk-booking-app .mpk-room-dates {
+	border-top: 1px solid rgba(2, 132, 199, 0.2);
+	background: rgba(248, 250, 252, 0.7);
+	padding: 14px 16px;
+	animation: mpkFadeUp 0.3s ease both;
+}
+
+.mpk-booking-app .mpk-dates-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 10px;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-dates-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+.mpk-booking-app .mpk-date-field-wrap {
+	display: flex;
+	flex-direction: column;
+}
+
+.mpk-booking-app .mpk-date-label {
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--mpk-text-muted);
+	margin-bottom: 4px;
+}
+
+.mpk-booking-app .mpk-date-input-box {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 44px;
+	border-radius: 12px;
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	padding: 0 12px;
+}
+
+.mpk-booking-app .mpk-date-input-box input[type="date"] {
+	border: none;
+	background: transparent;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	width: 100%;
+	outline: none;
+	font-family: var(--mpk-font-sans);
+}
+
+.mpk-booking-app .mpk-earliest-hint {
+	font-size: 11px;
+	color: var(--mpk-text-muted);
+	margin-top: 8px;
+}
+
+.mpk-booking-app .mpk-room-stay-calc {
+	margin-top: 10px;
+	border-radius: 10px;
+	background: rgba(2, 132, 199, 0.1);
+	padding: 8px 12px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--mpk-text);
+}
+
+/* STEP 3: REVIEW & SUMMARY */
+.mpk-booking-app .mpk-stats-row {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 12px;
+	margin-bottom: 24px;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-stats-row {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+.mpk-booking-app .mpk-stat-card {
+	border-radius: var(--mpk-radius-md);
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	padding: 14px 18px;
+}
+
+.mpk-booking-app .mpk-stat-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--mpk-text-muted);
+	margin: 0 0 4px;
+}
+
+.mpk-booking-app .mpk-stat-val {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	margin: 0;
+}
+
+.mpk-booking-app .mpk-review-block {
+	border-radius: var(--mpk-radius-lg);
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	box-shadow: var(--mpk-shadow-soft);
+	padding: 24px;
+	margin-bottom: 24px;
+}
+
+.mpk-booking-app .mpk-review-heading {
+	font-family: var(--mpk-font-sans);
+	font-size: 14px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--mpk-text-muted);
+	margin: 0 0 16px;
+}
+
+/* Form inputs */
+.mpk-booking-app .mpk-form-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 16px;
+}
+
+@media (min-width: 640px) {
+	.mpk-booking-app .mpk-form-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+.mpk-booking-app .mpk-form-full {
+	grid-column: 1 / -1;
+}
+
+.mpk-booking-app .mpk-form-field {
+	display: flex;
+	flex-direction: column;
+}
+
+.mpk-booking-app .mpk-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--mpk-text-muted);
+	margin-bottom: 6px;
+}
+
+.mpk-booking-app .mpk-input,
+.mpk-booking-app .mpk-textarea {
+	width: 100%;
+	border-radius: 12px;
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	padding: 10px 14px;
+	font-size: 14px;
+	color: var(--mpk-text);
+	font-family: var(--mpk-font-sans);
+	outline: none;
+	transition: all 0.2s;
+}
+
+.mpk-booking-app .mpk-input {
+	height: 44px;
+}
+
+.mpk-booking-app .mpk-input:focus,
+.mpk-booking-app .mpk-textarea:focus {
+	border-color: var(--mpk-primary);
+	box-shadow: 0 0 0 3px var(--mpk-primary-light);
+}
+
+.mpk-booking-app .mpk-file-drop {
+	border: 2px dashed var(--mpk-border);
+	border-radius: 12px;
+	background: rgba(248, 250, 252, 0.6);
+	padding: 10px 14px;
+	cursor: pointer;
+	transition: all 0.2s;
+	min-height: 44px;
+	display: flex;
+	align-items: center;
+}
+
+.mpk-booking-app .mpk-file-drop:hover {
+	border-color: var(--mpk-primary);
+}
+
+/* FINAL PRICING SUMMARY CARD */
+.mpk-booking-app .mpk-pricing-summary-card {
+	border-radius: var(--mpk-radius-lg);
+	border: 1px solid var(--mpk-border);
+	box-shadow: var(--mpk-shadow-soft);
+	overflow: hidden;
+	margin-bottom: 24px;
+}
+
+.mpk-booking-app .mpk-pricing-head {
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	padding: 16px 24px;
+}
+
+.mpk-booking-app .mpk-pricing-head p {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	opacity: 0.85;
+	margin: 0;
+}
+
+.mpk-booking-app .mpk-pricing-head h4 {
+	font-family: var(--mpk-font-sans);
+	font-size: 18px;
+	font-weight: 600;
+	color: #ffffff;
+	margin: 4px 0 0;
+}
+
+.mpk-booking-app .mpk-pricing-body {
+	background: #ffffff;
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	font-size: 14px;
+}
+
+.mpk-booking-app .mpk-price-row {
+	display: flex;
+	justify-content: space-between;
+	color: var(--mpk-text-muted);
+}
+
+.mpk-booking-app .mpk-price-row.total {
+	border-top: 1px solid var(--mpk-border);
+	padding-top: 14px;
+	margin-top: 6px;
+	font-size: 16px;
+	font-weight: 700;
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-grand-total-banner {
+	border-radius: var(--mpk-radius-md);
+	background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+	padding: 16px 20px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 8px;
+}
+
+.mpk-booking-app .mpk-grand-total-amount {
+	font-size: 28px;
+	font-weight: 700;
+	color: #059669;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ACCORDIONS (Step 3) */
+.mpk-booking-app .mpk-accordion {
+	border-radius: var(--mpk-radius-lg);
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	box-shadow: var(--mpk-shadow-soft);
+	overflow: hidden;
+	margin-bottom: 24px;
+}
+
+.mpk-booking-app .mpk-accordion-item {
+	border-bottom: 1px solid var(--mpk-border);
+}
+
+.mpk-booking-app .mpk-accordion-item:last-child {
+	border-bottom: none;
+}
+
+.mpk-booking-app .mpk-accordion-header {
+	padding: 16px 20px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	user-select: none;
+}
+
+.mpk-booking-app .mpk-accordion-body {
+	display: none;
+	padding: 0 20px 20px;
+	font-size: 14px;
+	color: var(--mpk-text-muted);
+	line-height: 1.6;
+}
+
+.mpk-booking-app .mpk-accordion-item.open .mpk-accordion-body {
+	display: block;
+}
+
+.mpk-booking-app .mpk-accordion-item.open .mpk-icon-chevron {
+	transform: rotate(180deg);
+}
+
+/* TERMS CHECKBOX */
+.mpk-booking-app .mpk-terms-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	border-radius: var(--mpk-radius-md);
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	padding: 16px;
+	cursor: pointer;
+	font-size: 14px;
+	color: var(--mpk-text);
+	margin-bottom: 24px;
+}
+
+.mpk-booking-app .mpk-terms-card input[type="checkbox"] {
+	margin-top: 3px;
+	width: 18px;
+	height: 18px;
+	accent-color: var(--mpk-primary);
+	cursor: pointer;
+}
+
+/* STEP 4: PAYMENT SELECTION */
+.mpk-booking-app .mpk-payment-options {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.mpk-booking-app .mpk-payment-card {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	border-radius: var(--mpk-radius-md);
+	border: 2px solid var(--mpk-border);
+	background: #ffffff;
+	padding: 18px 20px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.mpk-booking-app .mpk-payment-card:hover:not(.disabled) {
+	border-color: rgba(2, 132, 199, 0.5);
+	box-shadow: var(--mpk-shadow-soft);
+}
+
+.mpk-booking-app .mpk-payment-card.selected {
+	border-color: var(--mpk-primary);
+	box-shadow: var(--mpk-shadow-glow);
+}
+
+.mpk-booking-app .mpk-payment-card.disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.mpk-booking-app .mpk-payment-icon {
+	width: 48px;
+	height: 48px;
+	border-radius: 12px;
+	background: #f1f5f9;
+	color: var(--mpk-text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.2s;
+	flex-shrink: 0;
+}
+
+.mpk-booking-app .mpk-payment-card.selected .mpk-payment-icon {
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+}
+
+.mpk-booking-app .mpk-payment-title {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	margin: 0;
+}
+
+.mpk-booking-app .mpk-payment-desc {
+	font-size: 13px;
+	color: var(--mpk-text-muted);
+	margin: 3px 0 0;
+}
+
+/* STEP 5: CONFIRMATION */
+.mpk-booking-app .mpk-confirm-banner {
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	border-radius: var(--mpk-radius-lg);
+	padding: 36px 20px;
+	text-align: center;
+	margin-bottom: 24px;
+	box-shadow: var(--mpk-shadow-soft);
+}
+
+.mpk-booking-app .mpk-confirm-icon {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.2);
+	backdrop-filter: blur(8px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 auto 16px;
+}
+
+.mpk-booking-app .mpk-confirm-title {
+	font-family: var(--mpk-font-serif);
+	font-size: 28px;
+	font-weight: 600;
+	color: #ffffff;
+	margin: 0 0 6px;
+}
+
+.mpk-booking-app .mpk-confirm-code-card {
+	border-radius: var(--mpk-radius-md);
+	border: 1px solid var(--mpk-border);
+	background: #f8fafc;
+	padding: 16px 20px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 20px;
+}
+
+.mpk-booking-app .mpk-confirm-code-text {
+	font-size: 18px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-btn-copy {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: #ffffff;
+	border: 1px solid var(--mpk-border);
+	border-radius: 8px;
+	padding: 6px 12px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.mpk-booking-app .mpk-btn-copy:hover {
+	border-color: var(--mpk-primary);
+	color: var(--mpk-primary);
+}
+
+/* BOTTOM NAVIGATION */
+.mpk-booking-app .mpk-step-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin-top: 32px;
+	padding-top: 24px;
+	border-top: 1px solid var(--mpk-border);
+}
+
+.mpk-booking-app .mpk-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	border-radius: var(--mpk-radius-md);
+	font-size: 15px;
+	font-weight: 600;
+	padding: 12px 24px;
+	cursor: pointer;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	border: none;
+	outline: none;
+	font-family: var(--mpk-font-sans);
+}
+
+.mpk-booking-app .mpk-btn-outline {
+	background: #ffffff;
+	border: 1px solid var(--mpk-border);
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-btn-outline:hover {
+	border-color: var(--mpk-primary);
+	color: var(--mpk-primary);
+}
+
+.mpk-booking-app .mpk-btn-primary {
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	box-shadow: var(--mpk-shadow-soft);
+}
+
+.mpk-booking-app .mpk-btn-primary:hover:not(:disabled) {
+	transform: translateY(-1px);
+	box-shadow: var(--mpk-shadow-elevated);
+}
+
+.mpk-booking-app .mpk-btn-primary:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
+}
+
+.mpk-booking-app .mpk-validation-hint {
+	font-size: 12px;
+	color: var(--mpk-text-muted);
+}
+
+
+/* ==========================================================================
+   NON-DESTRUCTIVE EXTENSIONS & ELEMENT STYLES
+   Maintains 100% of the original CSS layout, fonts, margins, gradients & steppers.
+   ========================================================================== */
+
+/* 1. FILTER RADIO-DOT STYLES (Non-squishable circle dot) */
+.mpk-booking-app .mpk-filter-radio-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14px;
+	color: var(--mpk-text);
+	cursor: pointer;
+	padding: 5px 8px;
+	border-radius: 8px;
+	transition: background 0.15s ease;
+	margin-bottom: 2px;
+	user-select: none;
+	position: relative;
+}
+
+.mpk-booking-app .mpk-filter-radio-item:hover {
+	background: rgba(241, 245, 249, 0.7);
+}
+
+.mpk-booking-app .mpk-filter-radio-item input[type="checkbox"] {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+	margin: 0;
+	pointer-events: none;
+}
+
+.mpk-booking-app .mpk-radio-dot {
+	width: 18px !important;
+	height: 18px !important;
+	min-width: 18px !important;
+	min-height: 18px !important;
+	max-width: 18px !important;
+	max-height: 18px !important;
+	border-radius: 50% !important;
+	border: 1.5px solid #cbd5e1;
+	background: #ffffff;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0 !important;
+	position: relative;
+	box-sizing: border-box;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mpk-booking-app .mpk-radio-dot::after {
+	content: "";
+	width: 8px;
+	height: 8px;
+	min-width: 8px;
+	min-height: 8px;
+	border-radius: 50%;
+	background: var(--mpk-primary);
+	transform: scale(0);
+	transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	box-sizing: border-box;
+}
+
+.mpk-booking-app .mpk-filter-radio-item input[type="checkbox"]:checked ~ .mpk-radio-dot {
+	border-color: var(--mpk-primary);
+	box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.mpk-booking-app .mpk-filter-radio-item input[type="checkbox"]:checked ~ .mpk-radio-dot::after {
+	transform: scale(1);
+}
+
+.mpk-booking-app .mpk-filter-label {
+	font-size: 14px;
+	color: var(--mpk-text);
+}
+
+/* 2. DATE PICKER TRIGGER BUTTON & NATIVE OVERLAY */
+.mpk-booking-app .mpk-date-field-wrap {
+	position: relative;
+	width: 100%;
+}
+
+.mpk-booking-app .mpk-date-btn {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	height: 48px;
+	padding: 6px 14px;
+	border-radius: 12px;
+	border: 1px solid var(--mpk-border);
+	background: #ffffff;
+	text-align: left;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	position: relative;
+	overflow: hidden;
+	font-family: var(--mpk-font-sans);
+	box-sizing: border-box;
+}
+
+.mpk-booking-app .mpk-date-btn:hover {
+	border-color: var(--mpk-primary);
+	box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
+}
+
+.mpk-booking-app .mpk-date-btn .mpk-icon {
+	color: var(--mpk-primary);
+	flex-shrink: 0;
+}
+
+.mpk-booking-app .mpk-date-btn-content {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	line-height: 1.25;
+	flex: 1;
+	min-width: 0;
+}
+
+.mpk-booking-app .mpk-date-btn-label {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	font-weight: 600;
+	color: var(--mpk-text-muted);
+	margin-bottom: 2px;
+}
+
+.mpk-booking-app .mpk-date-btn-val {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--mpk-text);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mpk-booking-app .mpk-date-btn-val.placeholder {
+	font-weight: 400;
+	color: var(--mpk-text-muted);
+}
+
+.mpk-booking-app .mpk-date-native-overlay {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	cursor: pointer;
+	z-index: 2;
+	margin: 0;
+	border: none;
+}
+
+/* 3. STEP 3 COMPACT BOOKING SUMMARY CARD (Pure, non-breaking typography & padding) */
+.mpk-booking-app .mpk-summary-ocean-header {
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	padding: 16px 24px;
+}
+
+.mpk-booking-app .mpk-summary-header-sub {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	opacity: 0.85;
+	margin: 0;
+	font-weight: 600;
+}
+
+.mpk-booking-app .mpk-summary-header-title {
+	font-family: var(--mpk-font-sans);
+	font-size: 18px;
+	font-weight: 600;
+	color: #ffffff;
+	margin: 3px 0 0;
+}
+
+.mpk-booking-app .mpk-summary-card-body {
+	background: #ffffff;
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	font-size: 14px;
+}
+
+.mpk-booking-app .mpk-summary-loc-card {
+	border: 1px solid var(--mpk-border);
+	border-radius: var(--mpk-radius-md);
+	background: #f8fafc;
+	padding: 16px;
+}
+
+.mpk-booking-app .mpk-summary-loc-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+
+.mpk-booking-app .mpk-summary-loc-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 600;
+	font-size: 14px;
+	color: var(--mpk-text);
+}
+
+.mpk-booking-app .mpk-summary-loc-price {
+	font-weight: 700;
+	font-size: 14px;
+	color: var(--mpk-text);
+	font-variant-numeric: tabular-nums;
+}
+
+.mpk-booking-app .mpk-summary-room-items {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-left: 24px;
+}
+
+.mpk-booking-app .mpk-summary-room-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 13px;
+}
+
+.mpk-booking-app .mpk-summary-room-meta {
+	color: var(--mpk-text-muted);
+}
+
+.mpk-booking-app .mpk-summary-hotel-name {
+	color: var(--mpk-text);
+	font-weight: 500;
+}
+
+.mpk-booking-app .mpk-summary-sep {
+	margin: 0 6px;
+}
+
+.mpk-booking-app .mpk-summary-room-total {
+	font-weight: 600;
+	color: var(--mpk-text);
+	font-variant-numeric: tabular-nums;
+}
+
+.mpk-booking-app .mpk-grand-total-banner {
+	border-radius: var(--mpk-radius-md);
+	background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+	border: 1px solid rgba(16, 185, 129, 0.15);
+	padding: 16px 20px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 4px;
+}
+
+.mpk-booking-app .mpk-grand-total-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	color: var(--mpk-text-muted);
+	margin: 0 0 2px;
+	font-weight: 600;
+}
+
+.mpk-booking-app .mpk-grand-total-amount {
+	font-size: 30px;
+	font-weight: 800;
+	color: #059669;
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.1;
+}
+
+.mpk-booking-app .mpk-grand-total-note {
+	font-size: 11px;
+	color: var(--mpk-text-muted);
+	margin: 4px 0 0;
+}
+
+.mpk-booking-app .mpk-grand-total-badge {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--mpk-text-muted);
+	font-weight: 500;
+}
+
+/* 4. TERMS CIRCULAR BUBBLE CHECKMARK */
+.mpk-booking-app .mpk-terms-card {
+	position: relative;
+	user-select: none;
+}
+
+.mpk-booking-app .mpk-terms-bubble-wrap {
+	position: relative;
+	width: 20px !important;
+	height: 20px !important;
+	min-width: 20px !important;
+	min-height: 20px !important;
+	flex-shrink: 0 !important;
+}
+
+.mpk-booking-app .mpk-terms-bubble-wrap input[type="checkbox"] {
+	position: absolute;
+	opacity: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	cursor: pointer;
+	z-index: 2;
+}
+
+.mpk-booking-app .mpk-terms-bubble {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	border: 2px solid #cbd5e1;
+	background: #ffffff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #ffffff;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	box-sizing: border-box;
+}
+
+.mpk-booking-app .mpk-terms-bubble svg {
+	opacity: 0;
+	transform: scale(0.6);
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mpk-booking-app .mpk-terms-bubble-wrap input[type="checkbox"]:checked + .mpk-terms-bubble {
+	border-color: var(--mpk-primary);
+	background: var(--mpk-primary);
+}
+
+.mpk-booking-app .mpk-terms-bubble-wrap input[type="checkbox"]:checked + .mpk-terms-bubble svg {
+	opacity: 1;
+	transform: scale(1);
+}
+
+.mpk-booking-app .mpk-terms-text {
+	font-size: 14px;
+	color: var(--mpk-text);
+	display: flex;
+	align-items: center;
+	user-select: none;
+}
+
+/* 5. PAYMENT CARD SELECTION BADGE (Absolute inside card) */
+.mpk-booking-app .mpk-payment-card {
+	position: relative !important;
+}
+
+.mpk-booking-app .mpk-payment-check-badge {
+	position: absolute;
+	top: 50%;
+	right: 20px;
+	transform: translateY(-50%);
+	width: 28px !important;
+	height: 28px !important;
+	min-width: 28px !important;
+	min-height: 28px !important;
+	border-radius: 50%;
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+	flex-shrink: 0 !important;
+	z-index: 2;
+}
+
+.mpk-booking-app .mpk-payment-card.selected .mpk-payment-check-badge {
+	display: flex;
+}
+
+/* 6. CONFIRMATION CLEAN AMOUNT BOX & COPY BUTTON */
+.mpk-booking-app .mpk-confirm-amount-box {
+	border-radius: 16px;
+	background: linear-gradient(to right, #ecfdf5, #f0fdfa);
+	padding: 18px;
+	text-align: center;
+	margin-top: 20px;
+	border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.mpk-booking-app .mpk-confirm-amount-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	color: var(--mpk-text-muted);
+	margin: 0 0 4px;
+	font-weight: 700;
+}
+
+.mpk-booking-app .mpk-confirm-amount-val {
+	font-size: 32px;
+	font-weight: 800;
+	color: #059669;
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.mpk-booking-app .mpk-btn-copy svg {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+}
