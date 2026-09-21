@@ -92,7 +92,87 @@ class MPK_Ajax_Handler {
 
 		$reference_id = isset( $_POST['reference_id'] ) ? sanitize_text_field( wp_unslash( $_POST['reference_id'] ) ) : '';
 
-		// 5. Build booking record payload
+		// 5. Handle Secure Passport Copy Upload
+		$passport_file_url = '';
+		if ( isset( $_FILES['passport_file'] ) && ! empty( $_FILES['passport_file']['name'] ) ) {
+			$file = $_FILES['passport_file'];
+
+			// Check for PHP upload error codes
+			if ( isset( $file['error'] ) && UPLOAD_ERR_OK !== $file['error'] ) {
+				error_log( '[MPK] Passport upload PHP error: ' . $file['error'] );
+				wp_send_json_error(
+					array(
+						'field'   => 'passport_file',
+						'message' => __( 'File upload failed on server. Please check file size.', 'maldives-packages' ),
+					),
+					400
+				);
+			}
+
+			// Max size 10MB
+			if ( $file['size'] > 10 * 1024 * 1024 ) {
+				wp_send_json_error(
+					array(
+						'field'   => 'passport_file',
+						'message' => __( 'Passport file size must be less than 10MB.', 'maldives-packages' ),
+					),
+					400
+				);
+			}
+
+			// Validate allowed mime types & extensions
+			$allowed_mimes = array(
+				'pdf'          => 'application/pdf',
+				'png'          => 'image/png',
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'webp'         => 'image/webp',
+			);
+
+			$check_file = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], $allowed_mimes );
+			if ( empty( $check_file['ext'] ) || empty( $check_file['type'] ) ) {
+				// Fallback to extension check if finfo on Windows/custom setup is ambiguous
+				$check_ext = wp_check_filetype( $file['name'], $allowed_mimes );
+				if ( empty( $check_ext['ext'] ) || empty( $check_ext['type'] ) ) {
+					wp_send_json_error(
+						array(
+							'field'   => 'passport_file',
+							'message' => __( 'Only PDF, PNG, JPG, JPEG, and WEBP formats are allowed for passport copy.', 'maldives-packages' ),
+						),
+						400
+					);
+				}
+			}
+
+			if ( ! function_exists( 'wp_handle_upload' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/file.php';
+			}
+
+			$upload_overrides = array(
+				'test_form' => false,
+				'mimes'     => $allowed_mimes,
+			);
+
+			if ( is_uploaded_file( $file['tmp_name'] ) ) {
+				$movefile = wp_handle_upload( $file, $upload_overrides );
+			} else {
+				$movefile = wp_handle_sideload( $file, $upload_overrides );
+			}
+
+			if ( $movefile && ! isset( $movefile['error'] ) ) {
+				$passport_file_url = esc_url_raw( $movefile['url'] );
+			} else {
+				$upload_err = ! empty( $movefile['error'] ) ? $movefile['error'] : __( 'Failed to upload passport attachment.', 'maldives-packages' );
+				wp_send_json_error(
+					array(
+						'field'   => 'passport_file',
+						'message' => $upload_err,
+					),
+					400
+				);
+			}
+		}
+
+		// 5.1 Build booking record payload
 		$booking_data = array(
 			'reference_id'      => $reference_id,
 			'lead_name'         => $lead_name,
@@ -100,6 +180,7 @@ class MPK_Ajax_Handler {
 			'lead_phone'        => $lead_phone,
 			'lead_country'      => $lead_country,
 			'passport_no'       => $passport_no,
+			'passport_file_url' => $passport_file_url,
 			'special_requests'  => $special_reqs,
 			'selected_location' => $selected_location,
 			'hotel_name'        => $hotel_name,

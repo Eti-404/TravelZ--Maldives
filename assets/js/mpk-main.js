@@ -223,6 +223,7 @@
 			request: '',
 			fileName: ''
 		},
+		passportFile: null,    // Selected binary passport file object
 		agreed: false,         // Unchecked by default
 		paymentMethod: '',     // No default payment method selected
 		filters: {
@@ -380,12 +381,22 @@
 			};
 		}
 
+		var pkgSettings = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
+		var taxRate = (typeof pkgSettings.tax_rate === 'number') ? pkgSettings.tax_rate : 0.08;
+		var extrasCharge = (typeof pkgSettings.extras === 'number') ? pkgSettings.extras : 45;
+		var serviceCharge = (typeof pkgSettings.service_fee === 'number') ? pkgSettings.service_fee : 25;
+
+		var childFactor = 0.35;
+		if (typeof pkgSettings.child_discount_pct === 'number' && pkgSettings.child_discount_pct > 0) {
+			childFactor = Math.max(0, 0.55 * (1 - (pkgSettings.child_discount_pct / 100)));
+		}
+
 		var adultPkg = base * Math.max(1, state.adults) * 0.55;
-		var childPkg = base * state.children * 0.35;
+		var childPkg = base * state.children * childFactor;
 		var subtotal = adultPkg + childPkg;
-		var extras = 45;
-		var tax = subtotal * 0.08;
-		var service = 25;
+		var extras = extrasCharge;
+		var tax = subtotal * taxRate;
+		var service = serviceCharge;
 		var total = subtotal + extras + tax + service;
 
 		return {
@@ -571,6 +582,16 @@
 			renderHotels();
 		} else if (state.step === 3) {
 			renderReview();
+			var dropInfo = document.getElementById('mpk-passport-drop-fileinfo');
+			var dropLabel = document.getElementById('mpk-passport-drop-label');
+			var dropFilename = document.getElementById('mpk-passport-filename');
+			if (state.passportFile || (state.form && state.form.fileName)) {
+				var fName = state.passportFile ? state.passportFile.name : state.form.fileName;
+				var fSize = state.passportFile ? ' (' + (state.passportFile.size / (1024 * 1024)).toFixed(2) + ' MB)' : '';
+				if (dropFilename) dropFilename.textContent = fName + fSize;
+				if (dropLabel) dropLabel.style.display = 'none';
+				if (dropInfo) dropInfo.style.display = 'flex';
+			}
 		} else if (state.step === 4) {
 			var pCards = document.querySelectorAll('.mpk-payment-card');
 			for (var pc = 0; pc < pCards.length; pc++) {
@@ -1118,31 +1139,82 @@
 		var dropFilename = document.getElementById('mpk-passport-filename');
 		var dropRemove = document.getElementById('mpk-passport-remove');
 
+		function setPassportFile(file) {
+			if (!file) {
+				state.form.fileName = '';
+				state.passportFile = null;
+				if (fileInput) fileInput.value = '';
+				if (dropLabel) dropLabel.style.display = 'flex';
+				if (dropInfo) dropInfo.style.display = 'none';
+				return;
+			}
+			state.form.fileName = file.name;
+			state.passportFile = file;
+			if (dropFilename) dropFilename.textContent = file.name + ' (' + (file.size / (1024 * 1024)).toFixed(2) + ' MB)';
+			if (dropLabel) dropLabel.style.display = 'none';
+			if (dropInfo) dropInfo.style.display = 'flex';
+		}
+
 		if (dropzone && fileInput) {
+			// Prevent click event on fileInput from bubbling back to dropzone
+			fileInput.addEventListener('click', function (e) {
+				e.stopPropagation();
+			});
+
 			dropzone.addEventListener('click', function (e) {
-				if (e.target !== dropRemove) {
-					fileInput.click();
+				if (e.target === dropRemove || (dropRemove && dropRemove.contains(e.target))) {
+					return;
 				}
+				fileInput.click();
 			});
 
 			fileInput.addEventListener('change', function () {
 				if (this.files && this.files[0]) {
-					var file = this.files[0];
-					state.form.fileName = file.name;
-					if (dropFilename) dropFilename.textContent = file.name + ' (' + (file.size / (1024 * 1024)).toFixed(2) + ' MB)';
-					if (dropLabel) dropLabel.style.display = 'none';
-					if (dropInfo) dropInfo.style.display = 'flex';
+					setPassportFile(this.files[0]);
+				}
+			});
+
+			// Drag & Drop handlers
+			var dragEventsEnter = ['dragenter', 'dragover'];
+			for (var dei = 0; dei < dragEventsEnter.length; dei++) {
+				dropzone.addEventListener(dragEventsEnter[dei], function (e) {
+					e.preventDefault();
+					e.stopPropagation();
+					dropzone.style.borderColor = 'var(--mpk-primary, #0284c7)';
+					dropzone.style.backgroundColor = '#f0f9ff';
+				});
+			}
+
+			var dragEventsLeave = ['dragleave', 'drop'];
+			for (var del = 0; del < dragEventsLeave.length; del++) {
+				dropzone.addEventListener(dragEventsLeave[del], function (e) {
+					e.preventDefault();
+					e.stopPropagation();
+					dropzone.style.borderColor = '';
+					dropzone.style.backgroundColor = '';
+				});
+			}
+
+			dropzone.addEventListener('drop', function (e) {
+				if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+					setPassportFile(e.dataTransfer.files[0]);
 				}
 			});
 
 			if (dropRemove) {
 				dropRemove.addEventListener('click', function (e) {
 					e.stopPropagation();
-					fileInput.value = '';
-					state.form.fileName = '';
-					if (dropLabel) dropLabel.style.display = 'flex';
-					if (dropInfo) dropInfo.style.display = 'none';
+					setPassportFile(null);
 				});
+			}
+
+			// Restore file info state if already chosen
+			if (state.passportFile || (state.form && state.form.fileName)) {
+				var initialName = state.passportFile ? state.passportFile.name : state.form.fileName;
+				var initialSize = state.passportFile ? ' (' + (state.passportFile.size / (1024 * 1024)).toFixed(2) + ' MB)' : '';
+				if (dropFilename) dropFilename.textContent = initialName + initialSize;
+				if (dropLabel) dropLabel.style.display = 'none';
+				if (dropInfo) dropInfo.style.display = 'flex';
 			}
 		}
 
@@ -1519,6 +1591,11 @@
 		formData.append('lead_phone', (state.form && state.form.mobile) ? state.form.mobile.trim() : '');
 		formData.append('lead_country', (state.form && state.form.country) ? state.form.country.trim() : '');
 		formData.append('passport_no', (state.form && state.form.passport) ? state.form.passport.trim() : ((state.form && state.form.fileName) ? state.form.fileName : ''));
+		var domFileInput = document.getElementById('mpk-passport-file');
+		var passportFileToUpload = state.passportFile || (domFileInput && domFileInput.files && domFileInput.files[0] ? domFileInput.files[0] : null);
+		if (passportFileToUpload) {
+			formData.append('passport_file', passportFileToUpload);
+		}
 		formData.append('special_requests', (state.form && state.form.request) ? state.form.request.trim() : '');
 		formData.append('payment_method', state.paymentMethod || '');
 

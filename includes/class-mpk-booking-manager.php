@@ -51,6 +51,7 @@ class MPK_Booking_Manager {
 			lead_phone varchar(50) DEFAULT '' NOT NULL,
 			lead_country varchar(100) DEFAULT '' NOT NULL,
 			passport_no varchar(50) DEFAULT '' NOT NULL,
+			passport_file_url varchar(255) DEFAULT '' NOT NULL,
 			special_requests text,
 			selected_location varchar(100) DEFAULT '' NOT NULL,
 			hotel_name varchar(150) DEFAULT '' NOT NULL,
@@ -71,6 +72,12 @@ class MPK_Booking_Manager {
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql );
+
+		// Self-heal: ensure passport_file_url column exists in previously created tables
+		$col_exists = $wpdb->get_results( "SHOW COLUMNS FROM {$table_name} LIKE 'passport_file_url'" );
+		if ( empty( $col_exists ) ) {
+			$wpdb->query( "ALTER TABLE {$table_name} ADD COLUMN passport_file_url varchar(255) DEFAULT '' NOT NULL AFTER passport_no" );
+		}
 	}
 
 	/**
@@ -128,6 +135,7 @@ class MPK_Booking_Manager {
 			'lead_phone'        => isset( $data['lead_phone'] ) ? sanitize_text_field( $data['lead_phone'] ) : '',
 			'lead_country'      => isset( $data['lead_country'] ) ? sanitize_text_field( $data['lead_country'] ) : '',
 			'passport_no'       => isset( $data['passport_no'] ) ? sanitize_text_field( $data['passport_no'] ) : '',
+			'passport_file_url' => isset( $data['passport_file_url'] ) ? esc_url_raw( $data['passport_file_url'] ) : '',
 			'special_requests'  => isset( $data['special_requests'] ) ? sanitize_textarea_field( $data['special_requests'] ) : '',
 			'selected_location' => isset( $data['selected_location'] ) ? sanitize_text_field( $data['selected_location'] ) : '',
 			'hotel_name'        => isset( $data['hotel_name'] ) ? sanitize_text_field( $data['hotel_name'] ) : '',
@@ -151,6 +159,7 @@ class MPK_Booking_Manager {
 			'%s', // lead_phone
 			'%s', // lead_country
 			'%s', // passport_no
+			'%s', // passport_file_url
 			'%s', // special_requests
 			'%s', // selected_location
 			'%s', // hotel_name
@@ -176,6 +185,21 @@ class MPK_Booking_Manager {
 		return array(
 			'id'           => $wpdb->insert_id,
 			'reference_id' => $reference_id,
+		);
+	}
+
+	/**
+	 * Get a booking record by ID.
+	 *
+	 * @param int $id
+	 * @return object|null
+	 */
+	public static function get_booking_by_id( $id ) {
+		global $wpdb;
+		$table_name = self::get_table_name();
+
+		return $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table_name} WHERE id = %d LIMIT 1", absint( $id ) )
 		);
 	}
 
