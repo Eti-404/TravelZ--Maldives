@@ -16,27 +16,106 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MPK_Admin {
 
 	/**
-	 * Constructor: register hooks.
+	 * Singleton instance.
+	 *
+	 * @var MPK_Admin|null
 	 */
-	public function __construct() {
-		add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
-		add_action( 'wp_ajax_mpk_update_booking_status', array( $this, 'ajax_update_booking_status' ) );
+	private static $instance = null;
+
+	/**
+	 * Get singleton instance.
+	 *
+	 * @return MPK_Admin
+	 */
+	public static function get_instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
 	}
 
 	/**
-	 * Register the Maldives Bookings admin menu page.
+	 * Constructor: register hooks.
 	 */
-	public function register_admin_menu() {
+	public function __construct() {
+		self::$instance = $this;
+
+		add_action( 'admin_menu', array( $this, 'register_unified_admin_menu' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+		add_action( 'wp_ajax_mpk_update_booking_status', array( $this, 'ajax_update_booking_status' ) );
+		add_action( 'admin_init', array( $this, 'handle_admin_redirects' ) );
+		add_filter( 'parent_file', array( $this, 'filter_parent_file' ) );
+		add_filter( 'submenu_file', array( $this, 'filter_submenu_file' ) );
+	}
+
+	/**
+	 * Register the unified Maldives Packages admin menu and all submenus.
+	 */
+	public function register_unified_admin_menu() {
+		// 1. Top-level Menu: Maldives Packages
 		add_menu_page(
-			__( 'Customer Booking Management', 'maldives-packages' ),
-			__( 'Customer Bookings', 'maldives-packages' ),
+			__( 'Maldives Packages', 'maldives-packages' ),
+			__( 'Maldives Packages', 'maldives-packages' ),
 			'manage_options',
-			'mpk-bookings',
+			'maldives-packages',
 			array( $this, 'render_bookings_page' ),
-			'dashicons-tickets-alt',
+			'dashicons-palmtree',
 			26
 		);
+
+		// Submenu 1: Customer Bookings (renaming top-level default submenu)
+		add_submenu_page(
+			'maldives-packages',
+			__( 'Customer Bookings', 'maldives-packages' ),
+			__( 'Customer Bookings', 'maldives-packages' ),
+			'manage_options',
+			'maldives-packages',
+			array( $this, 'render_bookings_page' )
+		);
+
+		// Submenu 2: Hotels & Stays (mpk_hotel CPT)
+		add_submenu_page(
+			'maldives-packages',
+			__( 'Hotels & Stays', 'maldives-packages' ),
+			__( 'Hotels & Stays', 'maldives-packages' ),
+			'manage_options',
+			'edit.php?post_type=mpk_hotel'
+		);
+
+		// Submenu 3: Destinations (mpk_destination Taxonomy)
+		add_submenu_page(
+			'maldives-packages',
+			__( 'Destinations', 'maldives-packages' ),
+			__( 'Destinations', 'maldives-packages' ),
+			'manage_options',
+			'edit-tags.php?taxonomy=mpk_destination&post_type=mpk_hotel'
+		);
+
+		// Submenu 4: Settings (4-tab config panel)
+		add_submenu_page(
+			'maldives-packages',
+			__( 'Package Settings', 'maldives-packages' ),
+			__( 'Settings', 'maldives-packages' ),
+			'manage_options',
+			'mpk-settings',
+			array( $this, 'render_settings_page' )
+		);
+	}
+
+	/**
+	 * Backward compatibility alias for register_admin_menu.
+	 */
+	public function register_admin_menu() {
+		$this->register_unified_admin_menu();
+	}
+
+	/**
+	 * Render settings page callback.
+	 */
+	public function render_settings_page() {
+		if ( class_exists( 'MPK_Settings' ) ) {
+			MPK_Settings::render_page();
+		}
 	}
 
 	/**
@@ -45,12 +124,72 @@ class MPK_Admin {
 	 * @param string $hook Admin page hook suffix.
 	 */
 	public function enqueue_admin_assets( $hook ) {
-		if ( 'toplevel_page_mpk-bookings' !== $hook ) {
+		if ( 'toplevel_page_maldives-packages' !== $hook && 'maldives-packages_page_mpk-bookings' !== $hook ) {
 			return;
 		}
 
 		// Enqueue dashicons if not already loaded.
 		wp_enqueue_style( 'dashicons' );
+	}
+
+	/**
+	 * Backward compatibility: Redirect legacy menu page requests to unified menu.
+	 */
+	public function handle_admin_redirects() {
+		global $pagenow;
+
+		if ( 'admin.php' !== $pagenow ) {
+			return;
+		}
+
+		$page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+
+		if ( 'mpk-bookings' === $page || 'mpk-packages' === $page ) {
+			$query_args = $_GET;
+			$query_args['page'] = 'maldives-packages';
+			wp_safe_redirect( add_query_arg( $query_args, admin_url( 'admin.php' ) ) );
+			exit;
+		}
+	}
+
+	/**
+	 * Keep 'Maldives Packages' menu open when editing CPT or taxonomy.
+	 *
+	 * @param string $parent_file Current parent file.
+	 * @return string
+	 */
+	public function filter_parent_file( $parent_file ) {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$post_type = $screen ? $screen->post_type : ( isset( $_GET['post_type'] ) ? sanitize_key( $_GET['post_type'] ) : '' );
+		$taxonomy  = $screen ? $screen->taxonomy : ( isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : '' );
+
+		if ( 'mpk_hotel' === $post_type || 'mpk_destination' === $taxonomy ) {
+			return 'maldives-packages';
+		}
+
+		return $parent_file;
+	}
+
+	/**
+	 * Highlight corresponding submenu item when editing CPT or taxonomy.
+	 *
+	 * @param string $submenu_file Current submenu file.
+	 * @return string
+	 */
+	public function filter_submenu_file( $submenu_file ) {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$post_type = $screen ? $screen->post_type : ( isset( $_GET['post_type'] ) ? sanitize_key( $_GET['post_type'] ) : '' );
+		$taxonomy  = $screen ? $screen->taxonomy : ( isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : '' );
+
+		if ( 'mpk_destination' === $taxonomy ) {
+			return 'edit-tags.php?taxonomy=mpk_destination&post_type=mpk_hotel';
+		}
+
+		if ( 'mpk_hotel' === $post_type ) {
+			return 'edit.php?post_type=mpk_hotel';
+		}
+
+		return $submenu_file;
 	}
 
 	/**
@@ -117,6 +256,17 @@ class MPK_Admin {
 
 		if ( false === $updated ) {
 			wp_send_json_error( array( 'message' => __( 'Failed to update database record.', 'maldives-packages' ) ), 500 );
+		}
+
+		// Trigger Automated Customer Status-Update Email
+		if ( class_exists( 'MPK_Mailer' ) ) {
+			try {
+				MPK_Mailer::send_status_update_email( $booking_id, $new_status );
+			} catch ( \Throwable $e ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( 'MPK_Mailer Status Update Trigger Exception: ' . $e->getMessage() );
+				}
+			}
 		}
 
 		// Calculate updated counts
@@ -255,36 +405,36 @@ class MPK_Admin {
 			<div class="mpk-filter-bar">
 				<ul class="subsubsub mpk-status-tabs">
 					<li>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=mpk-bookings' ) ); ?>" class="<?php echo ( 'all' === $status_filter ) ? 'current' : ''; ?>">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=maldives-packages' ) ); ?>" class="<?php echo ( 'all' === $status_filter ) ? 'current' : ''; ?>">
 							<?php esc_html_e( 'All', 'maldives-packages' ); ?> <span class="count">(<?php echo esc_html( $total_count ); ?>)</span>
 						</a> |
 					</li>
 					<li>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=mpk-bookings&status=pending' ) ); ?>" class="<?php echo ( 'pending' === $status_filter ) ? 'current' : ''; ?>">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=maldives-packages&status=pending' ) ); ?>" class="<?php echo ( 'pending' === $status_filter ) ? 'current' : ''; ?>">
 							<?php esc_html_e( 'Pending', 'maldives-packages' ); ?> <span class="count">(<?php echo esc_html( $pending_count ); ?>)</span>
 						</a> |
 					</li>
 					<li>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=mpk-bookings&status=approved' ) ); ?>" class="<?php echo ( 'approved' === $status_filter ) ? 'current' : ''; ?>">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=maldives-packages&status=approved' ) ); ?>" class="<?php echo ( 'approved' === $status_filter ) ? 'current' : ''; ?>">
 							<?php esc_html_e( 'Approved', 'maldives-packages' ); ?> <span class="count">(<?php echo esc_html( $approved_count ); ?>)</span>
 						</a> |
 					</li>
 					<li>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=mpk-bookings&status=cancelled' ) ); ?>" class="<?php echo ( 'cancelled' === $status_filter ) ? 'current' : ''; ?>">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=maldives-packages&status=cancelled' ) ); ?>" class="<?php echo ( 'cancelled' === $status_filter ) ? 'current' : ''; ?>">
 							<?php esc_html_e( 'Cancelled', 'maldives-packages' ); ?> <span class="count">(<?php echo esc_html( $cancelled_count ); ?>)</span>
 						</a>
 					</li>
 				</ul>
 
 				<form method="get" class="mpk-search-box">
-					<input type="hidden" name="page" value="mpk-bookings" />
+					<input type="hidden" name="page" value="maldives-packages" />
 					<?php if ( ! empty( $status_filter ) && 'all' !== $status_filter ) : ?>
 						<input type="hidden" name="status" value="<?php echo esc_attr( $status_filter ); ?>" />
 					<?php endif; ?>
 					<input type="search" name="s" value="<?php echo esc_attr( $search_query ); ?>" placeholder="<?php esc_attr_e( 'Search by guest, email or reference...', 'maldives-packages' ); ?>" />
 					<button type="submit" class="button"><?php esc_html_e( 'Search', 'maldives-packages' ); ?></button>
 					<?php if ( ! empty( $search_query ) ) : ?>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=mpk-bookings' ) ); ?>" class="button button-link"><?php esc_html_e( 'Clear', 'maldives-packages' ); ?></a>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=maldives-packages' ) ); ?>" class="button button-link"><?php esc_html_e( 'Clear', 'maldives-packages' ); ?></a>
 					<?php endif; ?>
 				</form>
 			</div>
@@ -344,6 +494,7 @@ class MPK_Admin {
 									'lead_phone'        => $b->lead_phone,
 									'lead_country'      => $b->lead_country,
 									'passport_no'       => $b->passport_no,
+									'passport_file_url' => ! empty( $b->passport_file_url ) ? $b->passport_file_url : '',
 									'special_requests'  => $b->special_requests,
 									'selected_location' => $b->selected_location,
 									'hotel_name'        => $b->hotel_name,
@@ -384,6 +535,13 @@ class MPK_Admin {
 										<?php if ( ! empty( $b->lead_country ) ) : ?>
 											<div class="mpk-cell-sub" style="color: #64748b;">
 												<span class="dashicons dashicons-admin-site"></span> <?php echo esc_html( $b->lead_country ); ?>
+											</div>
+										<?php endif; ?>
+										<?php if ( ! empty( $b->passport_file_url ) ) : ?>
+											<div class="mpk-cell-sub" style="margin-top: 4px;">
+												<a href="<?php echo esc_url( $b->passport_file_url ); ?>" target="_blank" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#0284c7; text-decoration:none;" title="<?php esc_attr_e( 'View Attached Passport', 'maldives-packages' ); ?>">
+													<span class="dashicons dashicons-paperclip" style="font-size:13px; width:13px; height:13px;"></span> <?php esc_html_e( 'Passport Copy', 'maldives-packages' ); ?>
+												</a>
 											</div>
 										<?php endif; ?>
 									</td>
@@ -506,6 +664,14 @@ class MPK_Admin {
 							<div class="mpk-modal-info-item">
 								<span class="mpk-modal-label">Current Status</span>
 								<div id="mpk-modal-status-badge">—</div>
+							</div>
+							<div class="mpk-modal-info-item" id="mpk-modal-passport-wrap" style="grid-column: 1 / -1; display: none; margin-top: 6px; padding-top: 10px; border-top: 1px dashed #e2e8f0;">
+								<span class="mpk-modal-label">Passport Attachment Document</span>
+								<div style="margin-top: 6px;">
+									<a href="#" id="mpk-modal-passport-link" target="_blank" class="button button-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #0284c7;">
+										<span class="dashicons dashicons-media-document"></span> <?php esc_html_e( 'View / Download Passport Copy', 'maldives-packages' ); ?> &rarr;
+									</a>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -1113,6 +1279,18 @@ class MPK_Admin {
 					document.getElementById('mpk-modal-guest-phone').textContent = data.lead_phone || '—';
 					document.getElementById('mpk-modal-guest-country').textContent = data.lead_country || '—';
 					document.getElementById('mpk-modal-passport').textContent = data.passport_no || 'None Provided';
+
+					var passportWrap = document.getElementById('mpk-modal-passport-wrap');
+					var passportLink = document.getElementById('mpk-modal-passport-link');
+					if (passportWrap && passportLink) {
+						if (data.passport_file_url) {
+							passportLink.href = data.passport_file_url;
+							passportWrap.style.display = 'block';
+						} else {
+							passportLink.href = '#';
+							passportWrap.style.display = 'none';
+						}
+					}
 
 					var statusBadgeCell = document.getElementById('mpk-status-badge-cell-' + data.id);
 					document.getElementById('mpk-modal-status-badge').innerHTML = statusBadgeCell ? statusBadgeCell.innerHTML : data.status;

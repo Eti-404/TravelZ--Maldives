@@ -167,6 +167,7 @@ class MPK_Mailer {
 	 * @return string
 	 */
 	private static function render_customer_email( $d ) {
+		$settings = class_exists( 'MPK_Data_Manager' ) ? MPK_Data_Manager::get_settings() : array();
 		ob_start();
 		?>
 <!DOCTYPE html>
@@ -318,6 +319,25 @@ class MPK_Mailer {
 				</tr>
 			</table>
 
+			<?php if ( false !== stripos( $d['payment_method'], 'bank' ) ) : ?>
+			<!-- Wire Transfer Details -->
+			<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; margin-bottom:24px;">
+				<tr>
+					<td style="padding:16px 20px;">
+						<div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#1d4ed8; margin-bottom:8px;">
+							Wire Transfer Payment Instructions
+						</div>
+						<div style="font-size:13px; color:#1e40af; line-height:1.6;">
+							Beneficiary Bank: <strong><?php echo esc_html( ! empty( $settings['bank_name'] ) ? $settings['bank_name'] : 'Standard Chartered Bank' ); ?></strong><br>
+							Account Name: <strong><?php echo esc_html( ! empty( $settings['bank_account_name'] ) ? $settings['bank_account_name'] : 'Maldives Packages Concierge Ltd' ); ?></strong><br>
+							Account / IBAN: <strong><?php echo esc_html( ! empty( $settings['bank_account_no'] ) ? $settings['bank_account_no'] : '000-000-0000-00' ); ?></strong><br>
+							SWIFT / Branch: <strong><?php echo esc_html( ! empty( $settings['bank_swift'] ) ? $settings['bank_swift'] : 'SCBLBDDX' ); ?></strong>
+						</div>
+					</td>
+				</tr>
+			</table>
+			<?php endif; ?>
+
 			<?php if ( ! empty( $d['special_requests'] ) ) : ?>
 			<!-- Special Requests Note -->
 			<div style="background-color:#fffbeb; border-left:4px solid #f59e0b; padding:12px 16px; border-radius:6px; margin-bottom:24px;">
@@ -344,6 +364,9 @@ class MPK_Mailer {
 				<?php echo esc_html( $d['site_name'] ); ?> &bull; Maldives Luxury Packages
 			</div>
 			<div style="font-size:11px; color:#94a3b8; line-height:1.5;">
+				<?php if ( ! empty( $settings['support_email'] ) || ! empty( $settings['support_phone'] ) ) : ?>
+					Concierge Contact: <strong><?php echo esc_html( ! empty( $settings['support_email'] ) ? $settings['support_email'] : 'concierge@example.com' ); ?></strong> &bull; <strong><?php echo esc_html( ! empty( $settings['support_phone'] ) ? $settings['support_phone'] : '+00 123 456789' ); ?></strong><br>
+				<?php endif; ?>
 				This is an automated confirmation email regarding your package inquiry. If you have questions, please contact our support team.
 			</div>
 		</td>
@@ -364,7 +387,7 @@ class MPK_Mailer {
 	 * @return string
 	 */
 	private static function render_admin_email( $d ) {
-		$admin_bookings_url = admin_url( 'admin.php?page=mpk-bookings' );
+		$admin_bookings_url = admin_url( 'admin.php?page=maldives-packages' );
 		ob_start();
 		?>
 <!DOCTYPE html>
@@ -481,6 +504,210 @@ class MPK_Mailer {
 	<tr>
 		<td style="background-color:#f8fafc; padding:16px 32px; text-align:center; border-top:1px solid #e2e8f0; font-size:11px; color:#94a3b8;">
 			Maldives Packages Automated Alert System &bull; <?php echo esc_html( $d['site_name'] ); ?>
+		</td>
+	</tr>
+
+</table>
+
+</body>
+</html>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Send an automated status update email to the customer when an admin changes the booking status.
+	 *
+	 * @param int    $booking_id Database ID of the booking.
+	 * @param string $new_status New status ('Approved', 'Cancelled', etc.).
+	 * @return bool Whether the email was successfully handed to wp_mail.
+	 */
+	public static function send_status_update_email( $booking_id, $new_status ) {
+		if ( ! class_exists( 'MPK_Booking_Manager' ) ) {
+			require_once MPK_PLUGIN_DIR . 'includes/class-mpk-booking-manager.php';
+		}
+
+		$booking = MPK_Booking_Manager::get_booking_by_id( $booking_id );
+		if ( ! $booking || empty( $booking->lead_email ) || ! is_email( $booking->lead_email ) ) {
+			return false;
+		}
+
+		$reference_id   = $booking->reference_id;
+		$lead_name      = ! empty( $booking->lead_name ) ? $booking->lead_name : 'Valued Guest';
+		$hotel_name     = ! empty( $booking->hotel_name ) ? $booking->hotel_name : 'Maldives Resort';
+		$site_name      = get_bloginfo( 'name' );
+		$admin_email    = get_option( 'admin_email' );
+		$status_clean   = ucfirst( strtolower( trim( $new_status ) ) );
+
+		if ( 'Approved' === $status_clean || 'Confirmed' === $status_clean ) {
+			$subject = sprintf(
+				/* translators: 1: Reference ID, 2: Hotel Name */
+				__( 'Booking Approved: %1$s - %2$s Confirmed', 'maldives-packages' ),
+				$reference_id,
+				$hotel_name
+			);
+		} elseif ( 'Cancelled' === $status_clean ) {
+			$subject = sprintf(
+				/* translators: 1: Reference ID, 2: Hotel Name */
+				__( 'Booking Cancelled: %1$s - %2$s', 'maldives-packages' ),
+				$reference_id,
+				$hotel_name
+			);
+		} else {
+			$subject = sprintf(
+				/* translators: 1: Reference ID, 2: Status */
+				__( 'Booking Status Update: %1$s (%2$s)', 'maldives-packages' ),
+				$reference_id,
+				$status_clean
+			);
+		}
+
+		$headers = array(
+			'Content-Type: text/html; charset=UTF-8',
+			'From: ' . $site_name . ' <' . $admin_email . '>',
+		);
+
+		$view_data = array(
+			'booking'      => $booking,
+			'reference_id' => $reference_id,
+			'lead_name'    => $lead_name,
+			'hotel_name'   => $hotel_name,
+			'room_name'    => $booking->room_name,
+			'check_in'     => $booking->check_in,
+			'check_out'    => $booking->check_out,
+			'grand_total'  => '$' . number_format( (float) $booking->grand_total, 2 ),
+			'new_status'   => $status_clean,
+			'site_name'    => $site_name,
+			'admin_email'  => $admin_email,
+		);
+
+		$html = self::render_status_update_email( $view_data );
+
+		try {
+			return wp_mail( $booking->lead_email, $subject, $html, $headers );
+		} catch ( \Throwable $e ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'MPK_Mailer Status Update Exception: ' . $e->getMessage() );
+			}
+			return false;
+		}
+	}
+
+	/**
+	 * Render responsive HTML status update email for the customer.
+	 *
+	 * @param array $d Booking status parameters.
+	 * @return string
+	 */
+	private static function render_status_update_email( $d ) {
+		$is_approved  = in_array( $d['new_status'], array( 'Approved', 'Confirmed' ), true );
+		$is_cancelled = 'Cancelled' === $d['new_status'];
+		$banner_bg    = $is_approved ? '#10b981' : ( $is_cancelled ? '#ef4444' : '#0284c7' );
+
+		ob_start();
+		?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?php echo esc_html( $d['reference_id'] ); ?> - Status Update</title>
+</head>
+<body style="margin:0; padding:24px 12px; background-color:#0f172a; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#1e293b;">
+
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+
+	<!-- Header Banner -->
+	<tr>
+		<td style="background-color:#0f172a; padding:32px 28px; text-align:center; border-bottom:3px solid <?php echo esc_attr( $banner_bg ); ?>;">
+			<div style="font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#38bdf8; margin-bottom:6px;">
+				<?php echo esc_html( $d['site_name'] ); ?> &bull; MALDIVES ESCAPES
+			</div>
+			<h1 style="margin:0; font-size:22px; font-weight:800; color:#ffffff;">
+				Booking Status Update
+			</h1>
+			<p style="margin:6px 0 0 0; font-size:14px; color:#94a3b8; font-family:monospace;">
+				<?php echo esc_html( $d['reference_id'] ); ?>
+			</p>
+		</td>
+	</tr>
+
+	<!-- Status Announcement Card -->
+	<tr>
+		<td style="padding:28px 32px;">
+
+			<p style="margin:0 0 16px 0; font-size:16px; color:#1e293b;">
+				Dear <strong><?php echo esc_html( $d['lead_name'] ); ?></strong>,
+			</p>
+
+			<?php if ( $is_approved ) : ?>
+				<div style="background-color:#ecfdf5; border:1px solid #a7f3d0; border-left:4px solid #10b981; border-radius:10px; padding:18px 20px; margin-bottom:24px;">
+					<div style="display:inline-block; background-color:#10b981; color:#ffffff; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; padding:3px 10px; border-radius:4px; margin-bottom:8px;">
+						Approved & Confirmed
+					</div>
+					<h3 style="margin:0 0 6px 0; font-size:17px; color:#065f46;">
+						Your Maldives booking has been approved!
+					</h3>
+					<p style="margin:0; font-size:14px; line-height:1.5; color:#047857;">
+						We are pleased to inform you that your reservation request has been officially approved. Our luxury concierge specialist is finalizing your itinerary vouchers and transfer schedules.
+					</p>
+				</div>
+			<?php elseif ( $is_cancelled ) : ?>
+				<div style="background-color:#fef2f2; border:1px solid #fecaca; border-left:4px solid #ef4444; border-radius:10px; padding:18px 20px; margin-bottom:24px;">
+					<div style="display:inline-block; background-color:#ef4444; color:#ffffff; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; padding:3px 10px; border-radius:4px; margin-bottom:8px;">
+						Booking Cancelled
+					</div>
+					<h3 style="margin:0 0 6px 0; font-size:17px; color:#991b1b;">
+						Your reservation inquiry has been cancelled.
+					</h3>
+					<p style="margin:0; font-size:14px; line-height:1.5; color:#b91c1c;">
+						This booking has been marked as cancelled. If this was unexpected or if you would like to reschedule or explore other resort availability, please reach out to our team.
+					</p>
+				</div>
+			<?php else : ?>
+				<div style="background-color:#f0f9ff; border:1px solid #bae6fd; border-left:4px solid #0284c7; border-radius:10px; padding:18px 20px; margin-bottom:24px;">
+					<div style="font-size:13px; color:#0369a1;">
+						Status has been updated to: <strong style="text-transform:uppercase; color:#0284c7;"><?php echo esc_html( $d['new_status'] ); ?></strong>
+					</div>
+				</div>
+			<?php endif; ?>
+
+			<!-- Booking Summary Recap -->
+			<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; margin-bottom:24px;">
+				<tr style="border-bottom:1px solid #e2e8f0;">
+					<td colspan="2" style="padding:10px 16px; font-size:11px; font-weight:700; text-transform:uppercase; color:#64748b; background-color:#f1f5f9;">
+						Reservation Details
+					</td>
+				</tr>
+				<tr style="border-bottom:1px solid #f1f5f9;">
+					<td width="35%" style="padding:10px 16px; font-size:13px; color:#64748b;">Resort:</td>
+					<td width="65%" style="padding:10px 16px; font-size:13px; font-weight:600; color:#0f172a;"><?php echo esc_html( $d['hotel_name'] ); ?></td>
+				</tr>
+				<tr style="border-bottom:1px solid #f1f5f9;">
+					<td style="padding:10px 16px; font-size:13px; color:#64748b;">Room:</td>
+					<td style="padding:10px 16px; font-size:13px; font-weight:600; color:#0f172a;"><?php echo esc_html( $d['room_name'] ); ?></td>
+				</tr>
+				<tr style="border-bottom:1px solid #f1f5f9;">
+					<td style="padding:10px 16px; font-size:13px; color:#64748b;">Travel Dates:</td>
+					<td style="padding:10px 16px; font-size:13px; font-weight:600; color:#0f172a;"><?php echo esc_html( $d['check_in'] ); ?> &rarr; <?php echo esc_html( $d['check_out'] ); ?></td>
+				</tr>
+				<tr>
+					<td style="padding:10px 16px; font-size:13px; color:#64748b;">Total Amount:</td>
+					<td style="padding:10px 16px; font-size:14px; font-weight:700; color:#0f172a;"><?php echo esc_html( $d['grand_total'] ); ?></td>
+				</tr>
+			</table>
+
+			<p style="margin:0 0 10px 0; font-size:13px; color:#64748b; line-height:1.5;">
+				If you have any questions or need to modify your arrangements, please reply directly to this email or contact us at <a href="mailto:<?php echo esc_attr( $d['admin_email'] ); ?>" style="color:#0284c7; text-decoration:none;"><?php echo esc_html( $d['admin_email'] ); ?></a>.
+			</p>
+
+		</td>
+	</tr>
+
+	<!-- Footer -->
+	<tr>
+		<td style="background-color:#f1f5f9; padding:20px 32px; text-align:center; border-top:1px solid #e2e8f0; font-size:11px; color:#94a3b8;">
+			<?php echo esc_html( $d['site_name'] ); ?> &bull; Maldives Luxury Packages Concierge
 		</td>
 	</tr>
 
