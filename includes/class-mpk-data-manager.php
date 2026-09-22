@@ -195,9 +195,39 @@ class MPK_Data_Manager {
 					$rooms = get_post_meta( $post_id, '_mpk_rooms', true );
 				}
 
+				// Safely convert string or serialized data into array
+				if ( is_string( $rooms ) ) {
+					$rooms = maybe_unserialize( $rooms );
+					if ( is_string( $rooms ) ) {
+						$decoded = json_decode( $rooms, true );
+						$rooms   = is_array( $decoded ) ? $decoded : array();
+					}
+				}
+				if ( ! is_array( $rooms ) && ! is_object( $rooms ) ) {
+					$rooms = array();
+				}
+
+				// Fallback standard room if no rooms added by admin
+				if ( empty( $rooms ) ) {
+					$rooms = array(
+						array(
+							'id'        => 'r1',
+							'name'      => __( 'Standard Deluxe Room', 'maldives-packages' ),
+							'meal'      => 'Breakfast Included',
+							'price'     => 140.00,
+							'room_type' => 'Balcony',
+							'bed_type'  => 'Double',
+							'amenities' => array( 'Double', 'Air Conditioning', 'Free Wifi' ),
+						),
+					);
+				}
+
 				// Normalize rooms to ensure room_type and bed_type are always present
 				$normalized_rooms = array();
 				foreach ( $rooms as $rm ) {
+					if ( ! is_array( $rm ) ) {
+						continue;
+					}
 					$rm_name        = isset( $rm['name'] ) ? $rm['name'] : '';
 					$rm_amenities   = isset( $rm['amenities'] ) && is_array( $rm['amenities'] ) ? $rm['amenities'] : array();
 					$amenities_text = strtolower( $rm_name . ' ' . implode( ' ', $rm_amenities ) );
