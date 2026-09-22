@@ -215,7 +215,7 @@ class MPK_Settings {
 		self::$rendered = true;
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';
-		$valid_tabs = array( 'general', 'pricing', 'policies', 'payment' );
+		$valid_tabs = array( 'general', 'pricing', 'policies', 'payment', 'guide' );
 		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 			$active_tab = 'general';
 		}
@@ -256,6 +256,9 @@ class MPK_Settings {
 				</a>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=mpk-settings&tab=payment' ) ); ?>" class="nav-tab <?php echo ( 'payment' === $active_tab ) ? 'nav-tab-active' : ''; ?>" style="<?php echo ( 'payment' === $active_tab ) ? 'font-weight:700; color:#0284c7; border-bottom-color:#ffffff;' : ''; ?>">
 					<span class="dashicons dashicons-building" style="font-size: 17px; vertical-align: -3px;"></span> <?php esc_html_e( '4. Payment & Concierge', 'maldives-packages' ); ?>
+				</a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=mpk-settings&tab=guide' ) ); ?>" class="nav-tab <?php echo ( 'guide' === $active_tab ) ? 'nav-tab-active' : ''; ?>" style="<?php echo ( 'guide' === $active_tab ) ? 'font-weight:700; color:#0284c7; border-bottom-color:#ffffff;' : ''; ?>">
+					<span class="dashicons dashicons-book-alt" style="font-size: 17px; vertical-align: -3px;"></span> <?php esc_html_e( '5. Setup & Documentation', 'maldives-packages' ); ?>
 				</a>
 			</nav>
 
@@ -439,17 +442,231 @@ class MPK_Settings {
 								</td>
 							</tr>
 						</table>
+
+					<?php elseif ( 'guide' === $active_tab ) : ?>
+						<!-- TAB 5: SETUP & DOCUMENTATION -->
+						<div class="mpk-doc-header" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
+							<h2 style="margin: 0 0 6px 0; color: #0f172a; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+								<span class="dashicons dashicons-welcome-learn-more" style="color: #0284c7; font-size: 24px; width: 24px; height: 24px;"></span>
+								<?php esc_html_e( 'Maldives Packages — Master Setup & Documentation Guide', 'maldives-packages' ); ?>
+							</h2>
+							<p style="margin: 0; color: #64748b; font-size: 14px;">
+								<?php esc_html_e( 'Complete reference for embedding the booking wizard, configuring hotel inventory, and technical architecture.', 'maldives-packages' ); ?>
+							</p>
+						</div>
+
+						<!-- 1. MASTER SHORTCODE CARD -->
+						<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; padding: 24px; color: #ffffff; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);">
+							<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+								<div style="display: flex; align-items: center; gap: 8px;">
+									<span class="dashicons dashicons-shortcode" style="color: #38bdf8; font-size: 20px;"></span>
+									<span style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;">
+										<?php esc_html_e( 'Master Frontend Shortcode', 'maldives-packages' ); ?>
+									</span>
+								</div>
+								<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
+									<?php esc_html_e( 'Elementor & Gutenberg Ready', 'maldives-packages' ); ?>
+								</span>
+							</div>
+
+							<div style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+								<code id="mpk-master-shortcode" style="color: #38bdf8; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 17px; font-weight: 700; background: transparent; padding: 0;">
+									[maldives_packages_wizard]
+								</code>
+								<button type="button" id="mpk-btn-copy-shortcode" class="button" style="background: #0284c7; color: #ffffff; border: none; font-weight: 600; height: 36px; padding: 0 18px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+									<span class="dashicons dashicons-admin-page" style="font-size: 16px; width: 16px; height: 16px; margin-top: -2px;"></span>
+									<span id="mpk-copy-btn-text"><?php esc_html_e( 'Copy Shortcode', 'maldives-packages' ); ?></span>
+								</button>
+							</div>
+
+							<p style="color: #94a3b8; font-size: 13px; margin: 12px 0 0 0; line-height: 1.5;">
+								<?php esc_html_e( 'Paste this shortcode anywhere on your site: Elementor Shortcode Widget, Gutenberg Block, Standard Pages, or inside theme templates using:', 'maldives-packages' ); ?>
+								<code style="color: #cbd5e1; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-size: 12px;">&lt;?php echo do_shortcode('[maldives_packages_wizard]'); ?&gt;</code>.
+								<br />
+								<span style="font-size: 12px; color: #64748b;">
+									<em><?php esc_html_e( 'Legacy alias [maldives_packages] is also fully supported for backward compatibility.', 'maldives-packages' ); ?></em>
+								</span>
+							</p>
+						</div>
+
+						<!-- 2. STEP-BY-STEP SETUP GUIDE -->
+						<h3 style="color: #0f172a; font-size: 17px; font-weight: 700; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+							<span class="dashicons dashicons-flag" style="color: #0284c7;"></span>
+							<?php esc_html_e( 'Step-by-Step Setup Walkthrough', 'maldives-packages' ); ?>
+						</h3>
+
+						<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 30px;">
+							<!-- Step 1 -->
+							<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; border-top: 3px solid #0284c7;">
+								<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+									<span style="background: #0284c7; color: #ffffff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">1</span>
+									<h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;"><?php esc_html_e( 'Add Hotels & Rooms', 'maldives-packages' ); ?></h4>
+								</div>
+								<p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+									Navigate to <strong>Hotels &amp; Stays</strong> &rarr; <em>Add New</em>. Use the dynamic room repeater to configure room names, price per night, meal plan, and explicit <strong>Room Type</strong> (Balcony, Sea View, Island View, With Pool, Water Villa) and <strong>Bed Type</strong> (Single, Double, Twin, Triple, King).
+								</p>
+							</div>
+
+							<!-- Step 2 -->
+							<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; border-top: 3px solid #0284c7;">
+								<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+									<span style="background: #0284c7; color: #ffffff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">2</span>
+									<h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;"><?php esc_html_e( 'Assign Destinations', 'maldives-packages' ); ?></h4>
+								</div>
+								<p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+									Go to <strong>Destinations</strong> taxonomy and ensure your islands (<em>Hulhumale</em>, <em>Maafushi</em>, <em>Resort Island</em>) are assigned to each hotel so travelers can filter by atoll location in Step 1.
+								</p>
+							</div>
+
+							<!-- Step 3 -->
+							<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; border-top: 3px solid #0284c7;">
+								<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+									<span style="background: #0284c7; color: #ffffff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">3</span>
+									<h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;"><?php esc_html_e( 'Configure Settings', 'maldives-packages' ); ?></h4>
+								</div>
+								<p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+									Use the tabs above to set tax rates (GST), service fees, package inclusions/exclusions, wire transfer bank accounts, and concierge hotline contact numbers.
+								</p>
+							</div>
+
+							<!-- Step 4 -->
+							<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; border-top: 3px solid #10b981;">
+								<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+									<span style="background: #10b981; color: #ffffff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">4</span>
+									<h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;"><?php esc_html_e( 'Deploy & Go Live', 'maldives-packages' ); ?></h4>
+								</div>
+								<p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+									Create a page (e.g. <em>/book-maldives/</em>), add the shortcode <code>[maldives_packages_wizard]</code>, publish the page, and test the 5-step booking flow live!
+								</p>
+							</div>
+						</div>
+
+						<!-- 3. DEVELOPER FILE ARCHITECTURE MAP -->
+						<h3 style="color: #0f172a; font-size: 17px; font-weight: 700; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+							<span class="dashicons dashicons-category" style="color: #0284c7;"></span>
+							<?php esc_html_e( 'Developer File Architecture Map', 'maldives-packages' ); ?>
+						</h3>
+
+						<div style="overflow-x: auto; margin-bottom: 20px;">
+							<table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+								<thead>
+									<tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+										<th style="padding: 10px 14px; font-weight: 700; color: #334155; width: 34%;"><?php esc_html_e( 'File Path', 'maldives-packages' ); ?></th>
+										<th style="padding: 10px 14px; font-weight: 700; color: #334155; width: 22%;"><?php esc_html_e( 'Component Layer', 'maldives-packages' ); ?></th>
+										<th style="padding: 10px 14px; font-weight: 700; color: #334155;"><?php esc_html_e( 'Core Responsibilities', 'maldives-packages' ); ?></th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr style="border-bottom: 1px solid #e2e8f0;">
+										<td style="padding: 12px 14px; font-family: monospace; font-size: 12px; font-weight: 600; color: #0284c7;">frontend/class-mpk-frontend.php</td>
+										<td style="padding: 12px 14px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Frontend HTML / Shortcodes</span></td>
+										<td style="padding: 12px 14px; color: #475569; line-height: 1.4;">Registers <code>[maldives_packages_wizard]</code> and <code>[maldives_packages]</code> shortcodes, renders the 5-step wizard markup, and includes the clean SVG icon system.</td>
+									</tr>
+									<tr style="border-bottom: 1px solid #e2e8f0; background: #fafafa;">
+										<td style="padding: 12px 14px; font-family: monospace; font-size: 12px; font-weight: 600; color: #0284c7;">assets/css/mpk-frontend.css</td>
+										<td style="padding: 12px 14px;"><span style="background: #f3e8ff; color: #6b21a8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Presentation Layer</span></td>
+										<td style="padding: 12px 14px; color: #475569; line-height: 1.4;">Contains all responsive CSS styles, hero layouts, typography, stepper navigation cards, payment badges, and media queries matching 100% reference fidelity.</td>
+									</tr>
+									<tr style="border-bottom: 1px solid #e2e8f0;">
+										<td style="padding: 12px 14px; font-family: monospace; font-size: 12px; font-weight: 600; color: #0284c7;">assets/js/mpk-main.js</td>
+										<td style="padding: 12px 14px;"><span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Client App Engine</span></td>
+										<td style="padding: 12px 14px; color: #475569; line-height: 1.4;">Manages state across all 5 steps, interactive room selection, check-in/out date calculations, stay night computation, and the multi-filter matching engine (<code>isRoomMatchingFilters()</code>).</td>
+									</tr>
+									<tr style="border-bottom: 1px solid #e2e8f0; background: #fafafa;">
+										<td style="padding: 12px 14px; font-family: monospace; font-size: 12px; font-weight: 600; color: #0284c7;">includes/class-mpk-ajax-handler.php</td>
+										<td style="padding: 12px 14px;"><span style="background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Backend AJAX &amp; Security</span></td>
+										<td style="padding: 12px 14px; color: #475569; line-height: 1.4;">Handles AJAX booking submissions, nonce verification, customer email notifications, and binary passport file upload &amp; validation.</td>
+									</tr>
+									<tr style="border-bottom: 1px solid #e2e8f0;">
+										<td style="padding: 12px 14px; font-family: monospace; font-size: 12px; font-weight: 600; color: #0284c7;">admin/class-mpk-admin.php</td>
+										<td style="padding: 12px 14px;"><span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Admin Central Management</span></td>
+										<td style="padding: 12px 14px; color: #475569; line-height: 1.4;">Registers the single unified <em>Maldives Packages</em> top-level menu, 4 submenus, KPI metric counters, and the modern interactive Customer Bookings SPA table.</td>
+									</tr>
+									<tr style="border-bottom: 1px solid #e2e8f0; background: #fafafa;">
+										<td style="padding: 12px 14px; font-family: monospace; font-size: 12px; font-weight: 600; color: #0284c7;">admin/class-mpk-hotel-meta-box.php</td>
+										<td style="padding: 12px 14px;"><span style="background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Hotel Inventory Repeater</span></td>
+										<td style="padding: 12px 14px; color: #475569; line-height: 1.4;">Provides the dynamic hotel room repeater UI with explicit dropdown selectors for Room Types (Balcony, Sea View, etc.) and Bed Configurations (Single, Double, Twin, Triple, King).</td>
+									</tr>
+									<tr style="border-bottom: 1px solid #e2e8f0;">
+										<td style="padding: 12px 14px; font-family: monospace; font-size: 12px; font-weight: 600; color: #0284c7;">includes/class-mpk-data-manager.php</td>
+										<td style="padding: 12px 14px;"><span style="background: #f1f5f9; color: #334155; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Database &amp; Normalization</span></td>
+										<td style="padding: 12px 14px; color: #475569; line-height: 1.4;">Queries published hotels, handles safe unserialization/sanitization of room inventory meta, and provides the localized <code>MPK_INITIAL_DATA</code> payload.</td>
+									</tr>
+									<tr>
+										<td style="padding: 12px 14px; font-family: monospace; font-size: 12px; font-weight: 600; color: #0284c7;">includes/class-mpk-woocommerce-bridge.php</td>
+										<td style="padding: 12px 14px;"><span style="background: #fce7f3; color: #9d174d; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">WooCommerce Core Bridge</span></td>
+										<td style="padding: 12px 14px; color: #475569; line-height: 1.4;">Provides dedicated checkout bridging for "Card Payment" into WooCommerce, syncing customer info, order items, and two-way payment statuses (on <code>feature/woocommerce-integration</code>).</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+
+						<script>
+						document.addEventListener('DOMContentLoaded', function () {
+							var copyBtn = document.getElementById('mpk-btn-copy-shortcode');
+							if (copyBtn) {
+								copyBtn.addEventListener('click', function () {
+									var codeText = '[maldives_packages_wizard]';
+									var btnText = document.getElementById('mpk-copy-btn-text');
+
+									function notifyCopied() {
+										copyBtn.style.background = '#10b981';
+										if (btnText) btnText.textContent = '✓ Copied!';
+										setTimeout(function () {
+											copyBtn.style.background = '#0284c7';
+											if (btnText) btnText.textContent = 'Copy Shortcode';
+										}, 2200);
+									}
+
+									if (navigator.clipboard && window.isSecureContext) {
+										navigator.clipboard.writeText(codeText).then(notifyCopied).catch(function () {
+											fallbackCopy();
+										});
+									} else {
+										fallbackCopy();
+									}
+
+									function fallbackCopy() {
+										var ta = document.createElement('textarea');
+										ta.value = codeText;
+										ta.style.position = 'fixed';
+										ta.style.left = '-9999px';
+										document.body.appendChild(ta);
+										ta.focus();
+										ta.select();
+										try {
+											document.execCommand('copy');
+											notifyCopied();
+										} catch (err) {}
+										document.body.removeChild(ta);
+									}
+								});
+							}
+						});
+						</script>
 					<?php endif; ?>
 
-					<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
-						<button type="submit" name="mpk_save_settings" class="button button-primary button-hero" style="font-size: 14px; height: 42px; line-height: 40px; padding: 0 24px;">
-							<span class="dashicons dashicons-saved" style="vertical-align: -2px;"></span>
-							<?php esc_html_e( 'Save Tab Settings', 'maldives-packages' ); ?>
-						</button>
-						<span style="font-size: 12px; color: #64748b;">
-							<?php esc_html_e( 'Maldives Packages Enterprise Engine v1.0.1', 'maldives-packages' ); ?>
-						</span>
-					</div>
+					<?php if ( 'guide' !== $active_tab ) : ?>
+						<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+							<button type="submit" name="mpk_save_settings" class="button button-primary button-hero" style="font-size: 14px; height: 42px; line-height: 40px; padding: 0 24px;">
+								<span class="dashicons dashicons-saved" style="vertical-align: -2px;"></span>
+								<?php esc_html_e( 'Save Tab Settings', 'maldives-packages' ); ?>
+							</button>
+							<span style="font-size: 12px; color: #64748b;">
+								<?php esc_html_e( 'Maldives Packages Enterprise Engine v1.0.1', 'maldives-packages' ); ?>
+							</span>
+						</div>
+					<?php else : ?>
+						<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+							<span style="font-size: 13px; color: #0284c7; font-weight: 600;">
+								<span class="dashicons dashicons-info" style="vertical-align: -2px;"></span>
+								<?php esc_html_e( 'Documentation & Developer Reference — No configuration changes to save in this tab.', 'maldives-packages' ); ?>
+							</span>
+							<span style="font-size: 12px; color: #64748b;">
+								<?php esc_html_e( 'Maldives Packages Enterprise Engine v1.0.1', 'maldives-packages' ); ?>
+							</span>
+						</div>
+					<?php endif; ?>
 				</form>
 			</div>
 		</div>

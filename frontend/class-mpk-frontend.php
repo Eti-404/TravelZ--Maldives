@@ -20,6 +20,9 @@ class MPK_Frontend {
 	 * Constructor: register shortcode and asset hooks.
 	 */
 	public function __construct() {
+		// Master Shortcode: [maldives_packages_wizard]
+		add_shortcode( 'maldives_packages_wizard', array( $this, 'render_shortcode' ) );
+		// Backward-compatible alias: [maldives_packages]
 		add_shortcode( 'maldives_packages', array( $this, 'render_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_assets' ) );
 	}
@@ -129,6 +132,11 @@ class MPK_Frontend {
 	 * @return string HTML output.
 	 */
 	public function render_shortcode() {
+		// Ensure assets are registered (for Elementor / dynamic AJAX render contexts)
+		if ( ! wp_style_is( 'mpk-frontend-css', 'registered' ) ) {
+			$this->register_assets();
+		}
+
 		wp_enqueue_style( 'mpk-frontend-css' );
 		wp_enqueue_script( 'mpk-main-js' );
 
