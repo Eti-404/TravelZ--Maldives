@@ -29,9 +29,16 @@ class MPK_Frontend {
 	 */
 	public function register_assets() {
 		wp_register_style(
+			'mpk-google-fonts',
+			'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@300;400;500;600;700;800&display=swap',
+			array(),
+			null
+		);
+
+		wp_register_style(
 			'mpk-frontend-css',
 			MPK_PLUGIN_URL . 'assets/css/mpk-frontend.css',
-			array(),
+			array( 'mpk-google-fonts' ),
 			MPK_VERSION
 		);
 
@@ -277,7 +284,7 @@ class MPK_Frontend {
 							<div class="mpk-quantity-card">
 								<div class="mpk-quantity-meta">
 									<div class="mpk-quantity-icon-badge">
-										<?php echo self::get_icon( 'users', 18, 18 ); ?>
+										<?php echo self::get_icon( 'user', 18, 18 ); ?>
 									</div>
 									<div>
 										<p class="mpk-quantity-label">Adults</p>
@@ -295,7 +302,7 @@ class MPK_Frontend {
 							<div class="mpk-quantity-card">
 								<div class="mpk-quantity-meta">
 									<div class="mpk-quantity-icon-badge">
-										<?php echo self::get_icon( 'user', 18, 18 ); ?>
+										<?php echo self::get_icon( 'users', 18, 18 ); ?>
 									</div>
 									<div>
 										<p class="mpk-quantity-label">Children</p>
@@ -520,7 +527,7 @@ class MPK_Frontend {
 							<div class="mpk-form-grid">
 								<div class="mpk-form-field">
 									<label class="mpk-label" for="mpk-lead-name">
-										<?php echo self::get_icon( 'user', 14, 14 ); ?> Full Name *
+										<?php echo self::get_icon( 'user', 14, 14 ); ?> Full Name
 									</label>
 									<input type="text" id="mpk-lead-name" class="mpk-input" placeholder="John Doe" value="" required />
 								</div>
@@ -534,7 +541,7 @@ class MPK_Frontend {
 
 								<div class="mpk-form-field">
 									<label class="mpk-label" for="mpk-lead-email">
-										<?php echo self::get_icon( 'mail', 14, 14 ); ?> Email Address *
+										<?php echo self::get_icon( 'mail', 14, 14 ); ?> Email Address
 									</label>
 									<input type="email" id="mpk-lead-email" class="mpk-input" placeholder="you@email.com" value="" required />
 								</div>
@@ -559,15 +566,21 @@ class MPK_Frontend {
 									</label>
 									<div class="mpk-file-drop" id="mpk-passport-drop">
 										<input type="file" id="mpk-passport-file" accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
-										<div id="mpk-passport-drop-label" style="display: flex; align-items: center; gap: 8px;">
+										<div id="mpk-passport-drop-label" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
 											<?php echo self::get_icon( 'upload', 16, 16 ); ?>
-											<span style="font-weight: 500; font-size: 13px; color: var(--mpk-text-muted);">Upload passport (PDF or Image, max 10MB)</span>
+											<span style="font-weight: 500; font-size: 13px; color: var(--mpk-text-muted);">Upload passport</span>
 										</div>
 										<div id="mpk-passport-drop-fileinfo" style="display: none; align-items: center; justify-content: space-between; width: 100%;">
 											<span id="mpk-passport-filename" style="font-weight: 600; font-size: 13px; color: var(--mpk-text);"></span>
 											<button type="button" id="mpk-passport-remove" class="mpk-btn-qty-minus" style="width: 24px; height: 24px; font-size: 14px;">&times;</button>
 										</div>
 									</div>
+									<p class="mpk-passport-note">
+										Note: Please upload as a <span>single PDF</span> or a <span>single image</span> (PNG / JPG / WEBP), max 10 MB.
+									</p>
+									<p class="mpk-passport-note" style="margin-top: 2px;">
+										All travellers passport copies must be attached.
+									</p>
 								</div>
 
 								<div class="mpk-form-field mpk-form-full">
@@ -589,7 +602,7 @@ class MPK_Frontend {
 							<!-- Package Accordion Item -->
 							<div class="mpk-accordion-item open" id="mpk-acc-package">
 								<div class="mpk-accordion-header">
-									<span>Package Inclusions &amp; Exclusions</span>
+									<span>Package</span>
 									<span class="mpk-icon-chevron"><?php echo self::get_icon( 'chevron-down', 16, 16 ); ?></span>
 								</div>
 								<div class="mpk-accordion-body" id="mpk-acc-package-body">

@@ -1260,6 +1260,18 @@
 	border-color: var(--mpk-primary);
 }
 
+.mpk-booking-app .mpk-passport-note {
+	font-size: 11px;
+	color: var(--mpk-text-muted);
+	margin: 6px 0 0;
+	line-height: 1.4;
+}
+
+.mpk-booking-app .mpk-passport-note span {
+	font-weight: 600;
+	color: var(--mpk-text);
+}
+
 /* FINAL PRICING SUMMARY CARD */
 .mpk-booking-app .mpk-pricing-summary-card {
 	border-radius: var(--mpk-radius-lg);
@@ -1464,6 +1476,24 @@
 	font-size: 13px;
 	color: var(--mpk-text-muted);
 	margin: 3px 0 0;
+}
+
+.mpk-booking-app .mpk-payment-check-badge {
+	display: none;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: var(--mpk-gradient-ocean);
+	color: #ffffff;
+	align-items: center;
+	justify-content: center;
+	box-shadow: var(--mpk-shadow-glow);
+	flex-shrink: 0;
+	margin-left: auto;
+}
+
+.mpk-booking-app .mpk-payment-card.selected .mpk-payment-check-badge {
+	display: flex;
 }
 
 /* STEP 5: CONFIRMATION */

@@ -986,7 +986,7 @@
 
 							if (hasCheckIn && hasCheckOut && nights > 0) {
 								html += '<div class="mpk-room-stay-calc">';
-								html += '<span>🌙 ' + nights + ' ' + (nights === 1 ? 'night' : 'nights') + '</span>';
+								html += '<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg> ' + nights + ' ' + (nights === 1 ? 'night' : 'nights') + '</span>';
 								html += '<span class="mpk-tabular">$' + (room.price * nights) + '</span>';
 								html += '</div>';
 							}
@@ -1477,19 +1477,25 @@
 					incHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
 
 					incHtml += '<div>';
-					incHtml += '<p style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #059669; margin: 0 0 8px;">Includes</p>';
-					incHtml += '<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--mpk-text-muted); line-height: 1.6;">';
+					incHtml += '<p style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #047857; margin: 0 0 8px;">Includes</p>';
+					incHtml += '<ul style="margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--mpk-text-muted); display: flex; flex-direction: column; gap: 6px;">';
 					for (var inc = 0; inc < includesList.length; inc++) {
-						incHtml += '<li>' + includesList[inc] + '</li>';
+						incHtml += '<li style="display: flex; align-items: flex-start; gap: 8px;">';
+						incHtml += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg>';
+						incHtml += '<span>' + escapeHtml(includesList[inc]) + '</span>';
+						incHtml += '</li>';
 					}
 					incHtml += '</ul>';
 					incHtml += '</div>';
 
 					incHtml += '<div>';
-					incHtml += '<p style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #dc2626; margin: 0 0 8px;">Excludes</p>';
-					incHtml += '<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--mpk-text-muted); line-height: 1.6;">';
+					incHtml += '<p style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #be123c; margin: 0 0 8px;">Excludes</p>';
+					incHtml += '<ul style="margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--mpk-text-muted); display: flex; flex-direction: column; gap: 6px;">';
 					for (var exc = 0; exc < excludesList.length; exc++) {
-						incHtml += '<li>' + excludesList[exc] + '</li>';
+						incHtml += '<li style="display: flex; align-items: flex-start; gap: 8px;">';
+						incHtml += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+						incHtml += '<span>' + escapeHtml(excludesList[exc]) + '</span>';
+						incHtml += '</li>';
 					}
 					incHtml += '</ul>';
 					incHtml += '</div>';
