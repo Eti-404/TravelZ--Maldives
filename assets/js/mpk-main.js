@@ -49,8 +49,8 @@
 			image: 'assets/images/hotel-3.jpg',
 			amenities: ['Pool', 'Wifi', 'Spa', 'Restaurant'],
 			rooms: [
-				{ id: 'r1', name: 'Standard Room with Balcony', meal: 'Breakfast', price: 110, amenities: ['Balcony', 'Double', 'Single'] },
-				{ id: 'r2', name: 'Deluxe Sea View', meal: 'Breakfast & Dinner', price: 165, amenities: ['Sea View', 'Double', 'Triple'] }
+				{ id: 'r1', name: 'Standard Room with Balcony', meal: 'Breakfast', price: 110, room_type: 'Balcony', bed_type: 'Double', amenities: ['Balcony', 'Double', 'Air Conditioning', 'Free Wifi'] },
+				{ id: 'r2', name: 'Deluxe Sea View', meal: 'Breakfast & Dinner', price: 165, room_type: 'Sea View', bed_type: 'King', amenities: ['Sea View', 'King', 'Balcony', 'Mini Bar'] }
 			]
 		},
 		{
@@ -64,8 +64,8 @@
 			image: 'assets/images/hotel-1.jpg',
 			amenities: ['Wifi', 'Restaurant', 'Airport Transfer'],
 			rooms: [
-				{ id: 'r1', name: 'Standard Twin', meal: 'Breakfast', price: 78, amenities: ['Twin', 'Single', 'Double'] },
-				{ id: 'r2', name: 'Deluxe Double', meal: 'Breakfast & Dinner', price: 115, amenities: ['Double', 'Balcony', 'Triple'] }
+				{ id: 'r1', name: 'Standard Twin', meal: 'Breakfast', price: 78, room_type: 'Island View', bed_type: 'Twin', amenities: ['Island View', 'Twin', 'Free Wifi'] },
+				{ id: 'r2', name: 'Deluxe Double', meal: 'Breakfast & Dinner', price: 115, room_type: 'Balcony', bed_type: 'Double', amenities: ['Balcony', 'Double', 'City View'] }
 			]
 		},
 		{
@@ -79,8 +79,8 @@
 			image: 'assets/images/hotel-3.jpg',
 			amenities: ['Wifi', 'Snorkeling', 'Restaurant'],
 			rooms: [
-				{ id: 'r1', name: 'Standard Room', meal: 'Breakfast', price: 85, amenities: ['Double', 'Single'] },
-				{ id: 'r2', name: 'Sea View Deluxe', meal: 'All Inclusive', price: 175, amenities: ['Sea View', 'Double', 'Triple'] }
+				{ id: 'r1', name: 'Standard Room', meal: 'Breakfast', price: 85, room_type: 'Island View', bed_type: 'Single', amenities: ['Island View', 'Single', 'Double'] },
+				{ id: 'r2', name: 'Sea View Deluxe', meal: 'All Inclusive', price: 175, room_type: 'Sea View', bed_type: 'Double', amenities: ['Sea View', 'Double', 'Balcony'] }
 			]
 		},
 		{
@@ -94,8 +94,8 @@
 			image: 'assets/images/hotel-1.jpg',
 			amenities: ['Pool', 'Wifi', 'Excursions'],
 			rooms: [
-				{ id: 'r1', name: 'Island View Room', meal: 'Breakfast', price: 120, amenities: ['Island View', 'Double', 'Single'] },
-				{ id: 'r2', name: 'Super Deluxe Suite', meal: 'Breakfast & Dinner', price: 220, amenities: ['Suite', 'Triple', 'Double'] }
+				{ id: 'r1', name: 'Island View Room', meal: 'Breakfast', price: 120, room_type: 'Island View', bed_type: 'Double', amenities: ['Island View', 'Double', 'Sunset View'] },
+				{ id: 'r2', name: 'Super Deluxe Suite', meal: 'Breakfast & Dinner', price: 220, room_type: 'Balcony', bed_type: 'Triple', amenities: ['Balcony', 'Triple', 'Suite', 'Living Area'] }
 			]
 		},
 		{
@@ -109,8 +109,8 @@
 			image: 'assets/images/hotel-2.jpg',
 			amenities: ['Overwater', 'Spa', 'All Inclusive', 'Diving'],
 			rooms: [
-				{ id: 'r1', name: 'Beach Villa with Pool', meal: 'All Inclusive', price: 480, amenities: ['With Pool', 'Double', 'Triple'] },
-				{ id: 'r2', name: 'Water Villa', meal: 'All Inclusive', price: 720, amenities: ['Water Villa', 'Double', 'Triple'] }
+				{ id: 'r1', name: 'Beach Villa with Pool', meal: 'All Inclusive', price: 480, room_type: 'With Pool', bed_type: 'King', amenities: ['With Pool', 'King', 'Private Beach', 'Plunge Pool'] },
+				{ id: 'r2', name: 'Water Villa', meal: 'All Inclusive', price: 720, room_type: 'Water Villa', bed_type: 'King', amenities: ['Water Villa', 'King', 'Lagoon Access', 'Sun Deck'] }
 			]
 		},
 		{
@@ -124,8 +124,8 @@
 			image: 'assets/images/hotel-2.jpg',
 			amenities: ['Overwater', 'Spa', 'Fine Dining'],
 			rooms: [
-				{ id: 'r1', name: 'Sunset Water Villa', meal: 'Breakfast & Dinner', price: 560, amenities: ['Sea View', 'Water Villa', 'Double', 'Triple'] },
-				{ id: 'r2', name: 'Royal Suite with Pool', meal: 'All Inclusive', price: 890, amenities: ['With Pool', 'Single', 'Double', 'Triple'] }
+				{ id: 'r1', name: 'Sunset Water Villa', meal: 'Breakfast & Dinner', price: 560, room_type: 'Water Villa', bed_type: 'Double', amenities: ['Water Villa', 'Sea View', 'Double', 'King'] },
+				{ id: 'r2', name: 'Royal Suite with Pool', meal: 'All Inclusive', price: 890, room_type: 'With Pool', bed_type: 'Triple', amenities: ['With Pool', 'Triple', 'Sun Terrace', 'Jacuzzi'] }
 			]
 		}
 	];
@@ -136,13 +136,12 @@
 	var HOTELS = (rawData.hotels && rawData.hotels.length > 0) ? rawData.hotels : DEFAULT_HOTELS;
 	var PLUGIN_URL = rawData.plugin_url || '';
 
-	// Ensure all hotels have enriched bed types and room types so filters never falsely hide hotels
-	function enrichRoomsAndAmenities(hotelsList) {
+	// Ensure all hotel rooms have normalized room types and bed types
+	function normalizeHotelsData(hotelsList) {
 		if (!hotelsList || !Array.isArray(hotelsList)) return;
 		for (var h = 0; h < hotelsList.length; h++) {
 			var hotel = hotelsList[h];
 			if (!hotel.rooms || !hotel.rooms.length) continue;
-			var hasTripleRoom = false;
 
 			for (var r = 0; r < hotel.rooms.length; r++) {
 				var rm = hotel.rooms[r];
@@ -151,39 +150,41 @@
 				}
 				var roomText = ((rm.name || '') + ' ' + (rm.amenities.join(' '))).toLowerCase();
 
-				// Ensure Double is present on all rooms
-				if (rm.amenities.indexOf('Double') === -1) {
-					rm.amenities.push('Double');
-				}
-
-				// If room is deluxe, suite, villa, family, ocean/sea view, pool, or balcony
-				if (/deluxe|suite|villa|family|pool|water|sea|ocean|superior|triple/i.test(roomText)) {
-					if (rm.amenities.indexOf('Triple') === -1) {
-						rm.amenities.push('Triple');
+				// Ensure explicit room_type or infer from name/amenities
+				if (!rm.room_type) {
+					if (/water|overwater|lagoon\s*villa/i.test(roomText)) {
+						rm.room_type = 'Water Villa';
+					} else if (/pool|plunge/i.test(roomText)) {
+						rm.room_type = 'With Pool';
+					} else if (/sea|ocean|beach/i.test(roomText)) {
+						rm.room_type = 'Sea View';
+					} else if (/balcony|terrace|patio/i.test(roomText)) {
+						rm.room_type = 'Balcony';
+					} else {
+						rm.room_type = 'Island View';
 					}
-					hasTripleRoom = true;
 				}
 
-				// Ensure Single / Twin mapping on standard or twin rooms
-				if (/single|twin|standard/i.test(roomText)) {
-					if (rm.amenities.indexOf('Single') === -1) rm.amenities.push('Single');
-					if (rm.amenities.indexOf('Twin') === -1) rm.amenities.push('Twin');
-				}
-			}
-
-			// Resilient Fallback: If no room in this hotel has Triple yet, add Triple to the last room
-			// so that selecting 'Triple' never eliminates this hotel in any location!
-			if (!hasTripleRoom && hotel.rooms.length > 0) {
-				var targetRoom = hotel.rooms[hotel.rooms.length - 1];
-				if (targetRoom.amenities.indexOf('Triple') === -1) {
-					targetRoom.amenities.push('Triple');
+				// Ensure explicit bed_type or infer from name/amenities
+				if (!rm.bed_type) {
+					if (/triple|family|3\s*bed/i.test(roomText)) {
+						rm.bed_type = 'Triple';
+					} else if (/twin|2\s*single/i.test(roomText)) {
+						rm.bed_type = 'Twin';
+					} else if (/single|1\s*person|solo/i.test(roomText)) {
+						rm.bed_type = 'Single';
+					} else if (/king/i.test(roomText)) {
+						rm.bed_type = 'King';
+					} else {
+						rm.bed_type = 'Double';
+					}
 				}
 			}
 		}
 	}
 
-	enrichRoomsAndAmenities(DEFAULT_HOTELS);
-	enrichRoomsAndAmenities(HOTELS);
+	normalizeHotelsData(DEFAULT_HOTELS);
+	normalizeHotelsData(HOTELS);
 
 	function resolveImageUrl(img) {
 		if (!img) return '';
@@ -296,54 +297,93 @@
 		return 'MPK-' + stamp + '-' + rand;
 	}
 
-	// Resilient Substring & Semantic Tag Matcher
-	function matchRoomFeatures(room, hotel) {
-		var textParts = [];
-		if (room.name) textParts.push(room.name);
-		if (room.meal) textParts.push(room.meal);
-		if (room.amenities && Array.isArray(room.amenities)) {
-			textParts = textParts.concat(room.amenities);
+	// Room & Bed Filter Matching Engine
+	function roomMatchesBed(room, bedType) {
+		if (!bedType) return true;
+		var bt = bedType.toLowerCase();
+		var rBed = (room.bed_type || '').toLowerCase();
+		var rName = (room.name || '').toLowerCase();
+		var rAmenities = (room.amenities || []).map(function (a) { return ('' + a).toLowerCase(); });
+
+		if (bt === 'single') {
+			return rBed === 'single' || rAmenities.indexOf('single') !== -1 || /\bsingle\b/i.test(rName);
 		}
-		if (hotel && hotel.amenities && Array.isArray(hotel.amenities)) {
-			textParts = textParts.concat(hotel.amenities);
+		if (bt === 'double') {
+			return rBed === 'double' || rBed === 'king' || rAmenities.indexOf('double') !== -1 || rAmenities.indexOf('king') !== -1 || /\b(double|king)\b/i.test(rName);
 		}
-		var joined = textParts.join(' ').toLowerCase();
+		if (bt === 'twin') {
+			return rBed === 'twin' || rAmenities.indexOf('twin') !== -1 || /\btwin\b/i.test(rName);
+		}
+		if (bt === 'triple') {
+			return rBed === 'triple' || rAmenities.indexOf('triple') !== -1 || /\btriple\b/i.test(rName) || /\b(family|3\s*bed)\b/i.test(rName);
+		}
+		return rBed === bt || rAmenities.indexOf(bt) !== -1;
+	}
 
-		var isDouble = /double|king|queen|deluxe|villa|suite|balcony|sea|ocean|standard/i.test(joined) ||
-			(room.amenities && room.amenities.indexOf('Double') !== -1);
-		var isSingle = /single|twin|standard/i.test(joined) ||
-			(room.amenities && room.amenities.indexOf('Single') !== -1);
-		var isTwin = /twin|single/i.test(joined) ||
-			(room.amenities && room.amenities.indexOf('Twin') !== -1);
-		// Triple is resilient: matches Triple, Suite, Villa, Deluxe, Family, Pool, Water, Sea, Ocean, Balcony, or multi-occupancy
-		var isTriple = /triple|suite|villa|family|deluxe|pool|water|sea|ocean|balcony|lagoon|resort/i.test(joined) ||
-			(room.amenities && room.amenities.indexOf('Triple') !== -1);
+	function roomMatchesRoomType(room, roomType) {
+		if (!roomType) return true;
+		var rt = roomType.toLowerCase();
+		var rType = (room.room_type || '').toLowerCase();
+		var rName = (room.name || '').toLowerCase();
+		var rAmenities = (room.amenities || []).map(function (a) { return ('' + a).toLowerCase(); });
 
-		var isBalcony = /balcony|terrace|patio/i.test(joined) || (room.amenities && room.amenities.indexOf('Balcony') !== -1);
-		var isSeaView = /sea|ocean|beach|water|sunset/i.test(joined) || (room.amenities && room.amenities.indexOf('Sea View') !== -1);
-		var isIslandView = /island|garden|city|standard/i.test(joined) || (room.amenities && room.amenities.indexOf('Island View') !== -1);
-		var isWithPool = /pool|plunge/i.test(joined) || (room.amenities && room.amenities.indexOf('With Pool') !== -1);
-		var isWaterVilla = /water|overwater|lagoon|haven/i.test(joined) || (room.amenities && room.amenities.indexOf('Water Villa') !== -1);
+		if (rt === 'balcony') {
+			return rType === 'balcony' || rAmenities.indexOf('balcony') !== -1 || /\b(balcony|terrace|patio)\b/i.test(rName);
+		}
+		if (rt === 'sea view') {
+			return rType === 'sea view' || rAmenities.indexOf('sea view') !== -1 || /\b(sea|ocean)\s*view\b/i.test(rName);
+		}
+		if (rt === 'island view') {
+			return rType === 'island view' || rAmenities.indexOf('island view') !== -1 || /\b(island|garden|city)\s*view\b/i.test(rName);
+		}
+		if (rt === 'with pool') {
+			return rType === 'with pool' || rAmenities.indexOf('with pool') !== -1 || /\b(pool|plunge)\b/i.test(rName);
+		}
+		if (rt === 'water villa') {
+			return rType === 'water villa' || rAmenities.indexOf('water villa') !== -1 || /\b(water|overwater)\s*villa\b/i.test(rName);
+		}
+		return rType === rt || rAmenities.indexOf(rt) !== -1;
+	}
 
-		return {
-			matchesBed: function (b) {
-				var bLower = b.toLowerCase();
-				if (bLower === 'double') return isDouble;
-				if (bLower === 'single') return isSingle;
-				if (bLower === 'twin') return isTwin;
-				if (bLower === 'triple') return isTriple;
-				return true;
-			},
-			matchesRoomType: function (rt) {
-				var rtLower = rt.toLowerCase();
-				if (rtLower === 'balcony') return isBalcony;
-				if (rtLower === 'sea view') return isSeaView;
-				if (rtLower === 'island view') return isIslandView;
-				if (rtLower === 'with pool') return isWithPool;
-				if (rtLower === 'water villa') return isWaterVilla;
-				return true;
+	function isRoomMatchingFilters(room, filters) {
+		if (!room) return false;
+		if (!filters) return true;
+
+		// 1. Max Price filter
+		if (typeof room.price === 'number' && typeof filters.maxPrice === 'number') {
+			if (room.price > filters.maxPrice) return false;
+		}
+
+		// 2. Meal filter (if any selected, room.meal must match one)
+		if (filters.meals && filters.meals.length > 0) {
+			if (filters.meals.indexOf(room.meal) === -1) return false;
+		}
+
+		// 3. Bed Type filter (if any selected, room must match at least one)
+		if (filters.beds && filters.beds.length > 0) {
+			var hasMatchingBed = false;
+			for (var b = 0; b < filters.beds.length; b++) {
+				if (roomMatchesBed(room, filters.beds[b])) {
+					hasMatchingBed = true;
+					break;
+				}
 			}
-		};
+			if (!hasMatchingBed) return false;
+		}
+
+		// 4. Room Type filter (if any selected, room must match at least one)
+		if (filters.rooms && filters.rooms.length > 0) {
+			var hasMatchingRoomType = false;
+			for (var r = 0; r < filters.rooms.length; r++) {
+				if (roomMatchesRoomType(room, filters.rooms[r])) {
+					hasMatchingRoomType = true;
+					break;
+				}
+			}
+			if (!hasMatchingRoomType) return false;
+		}
+
+		return true;
 	}
 
 	// Real-Time Pricing Calculation matching SummarySidebar.tsx
@@ -793,8 +833,7 @@
 			var loc = findLocation(locId);
 			if (!loc) continue;
 
-			// Hotel-level filtering primarily works on location, stars, search, and meals & price
-			// Bed Type and Room Type filters NEVER eliminate hotel cards from the screen (100% matched to reference site)
+			// Hotel-level filtering: location, star rating, search text, and at least one matching room
 			var hotelsForLoc = HOTELS.filter(function (h) {
 				if (h.location !== locId) return false;
 
@@ -803,26 +842,21 @@
 					if (state.filters.stars.indexOf(h.stars) === -1) return false;
 				}
 
-				// Search text filter
+				// Search text filter (hotel name or room names)
 				if (state.filters.search) {
-					if (h.name.toLowerCase().indexOf(state.filters.search.toLowerCase()) === -1) {
+					var q = state.filters.search.toLowerCase();
+					var matchesHotelName = (h.name || '').toLowerCase().indexOf(q) !== -1;
+					var matchesAnyRoomName = (h.rooms || []).some(function (r) {
+						return (r.name || '').toLowerCase().indexOf(q) !== -1;
+					});
+					if (!matchesHotelName && !matchesAnyRoomName) {
 						return false;
 					}
 				}
 
-				// Meals & Price criteria
+				// Hotel must have AT LEAST ONE room satisfying all active room/bed/meal/price filters
 				var hasMatchingRoom = (h.rooms || []).some(function (r) {
-					// Meals
-					if (state.filters.meals.length > 0 && state.filters.meals.indexOf(r.meal) === -1) {
-						return false;
-					}
-
-					// Price
-					if (r.price > state.filters.maxPrice) {
-						return false;
-					}
-
-					return true;
+					return isRoomMatchingFilters(r, state.filters);
 				});
 
 				return hasMatchingRoom;
@@ -876,10 +910,14 @@
 					html += '</div>';
 					html += '</div>';
 
-					// Rooms list
+					// Rooms list - only render rooms matching active filters
+					var roomsToDisplay = (hotel.rooms || []).filter(function (r) {
+						return isRoomMatchingFilters(r, state.filters);
+					});
+
 					html += '<div class="mpk-rooms-list">';
-					for (var rIdx = 0; rIdx < (hotel.rooms || []).length; rIdx++) {
-						var room = hotel.rooms[rIdx];
+					for (var rIdx = 0; rIdx < roomsToDisplay.length; rIdx++) {
+						var room = roomsToDisplay[rIdx];
 						var sel = getSelection(hotel.id, room.id);
 						var isSel = !!sel;
 						var hasCheckIn = isSel && !!sel.checkIn;

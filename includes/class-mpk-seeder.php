@@ -18,7 +18,7 @@ class MPK_Seeder {
 	/**
 	 * Seed version to control upgrades without duplicates.
 	 */
-	const SEED_VERSION = '1.0.0';
+	const SEED_VERSION = '1.1.0';
 
 	/**
 	 * Run the seeding process.
@@ -123,6 +123,7 @@ class MPK_Seeder {
 				update_post_meta( $post_id, '_mpk_area', $h['area'] );
 				update_post_meta( $post_id, '_mpk_image_url', $h['image'] );
 				update_post_meta( $post_id, '_mpk_amenities', $h['amenities'] );
+				update_post_meta( $post_id, '_mpk_hotel_rooms', $h['rooms'] );
 				update_post_meta( $post_id, '_mpk_rooms', $h['rooms'] );
 			}
 		}
@@ -182,14 +183,18 @@ class MPK_Seeder {
 						'name'      => 'Standard Room with Balcony',
 						'meal'      => 'Breakfast',
 						'price'     => 110,
-						'amenities' => array( 'Balcony' ),
+						'room_type' => 'Balcony',
+						'bed_type'  => 'Double',
+						'amenities' => array( 'Balcony', 'Double', 'Air Conditioning', 'Free Wifi' ),
 					),
 					array(
 						'id'        => 'r2',
 						'name'      => 'Deluxe Sea View',
 						'meal'      => 'Breakfast & Dinner',
 						'price'     => 165,
-						'amenities' => array( 'Sea View' ),
+						'room_type' => 'Sea View',
+						'bed_type'  => 'King',
+						'amenities' => array( 'Sea View', 'King', 'Balcony', 'Mini Bar' ),
 					),
 				),
 			),
@@ -209,14 +214,18 @@ class MPK_Seeder {
 						'name'      => 'Standard Twin',
 						'meal'      => 'Breakfast',
 						'price'     => 78,
-						'amenities' => array( 'Twin' ),
+						'room_type' => 'Island View',
+						'bed_type'  => 'Twin',
+						'amenities' => array( 'Island View', 'Twin', 'Free Wifi' ),
 					),
 					array(
 						'id'        => 'r2',
 						'name'      => 'Deluxe Double',
 						'meal'      => 'Breakfast & Dinner',
 						'price'     => 115,
-						'amenities' => array( 'Double' ),
+						'room_type' => 'Balcony',
+						'bed_type'  => 'Double',
+						'amenities' => array( 'Balcony', 'Double', 'City View' ),
 					),
 				),
 			),
@@ -236,14 +245,18 @@ class MPK_Seeder {
 						'name'      => 'Standard Room',
 						'meal'      => 'Breakfast',
 						'price'     => 85,
-						'amenities' => array( 'Double' ),
+						'room_type' => 'Island View',
+						'bed_type'  => 'Single',
+						'amenities' => array( 'Island View', 'Single', 'Double' ),
 					),
 					array(
 						'id'        => 'r2',
 						'name'      => 'Sea View Deluxe',
 						'meal'      => 'All Inclusive',
 						'price'     => 175,
-						'amenities' => array( 'Sea View' ),
+						'room_type' => 'Sea View',
+						'bed_type'  => 'Double',
+						'amenities' => array( 'Sea View', 'Double', 'Balcony' ),
 					),
 				),
 			),
@@ -263,14 +276,18 @@ class MPK_Seeder {
 						'name'      => 'Island View Room',
 						'meal'      => 'Breakfast',
 						'price'     => 120,
-						'amenities' => array( 'Island View' ),
+						'room_type' => 'Island View',
+						'bed_type'  => 'Double',
+						'amenities' => array( 'Island View', 'Double', 'Sunset View' ),
 					),
 					array(
 						'id'        => 'r2',
 						'name'      => 'Super Deluxe Suite',
 						'meal'      => 'Breakfast & Dinner',
 						'price'     => 220,
-						'amenities' => array( 'Suite' ),
+						'room_type' => 'Balcony',
+						'bed_type'  => 'Triple',
+						'amenities' => array( 'Balcony', 'Triple', 'Suite', 'Living Area' ),
 					),
 				),
 			),
@@ -290,14 +307,18 @@ class MPK_Seeder {
 						'name'      => 'Beach Villa with Pool',
 						'meal'      => 'All Inclusive',
 						'price'     => 480,
-						'amenities' => array( 'With Pool' ),
+						'room_type' => 'With Pool',
+						'bed_type'  => 'King',
+						'amenities' => array( 'With Pool', 'King', 'Private Beach', 'Plunge Pool' ),
 					),
 					array(
 						'id'        => 'r2',
 						'name'      => 'Water Villa',
 						'meal'      => 'All Inclusive',
 						'price'     => 720,
-						'amenities' => array( 'Water Villa' ),
+						'room_type' => 'Water Villa',
+						'bed_type'  => 'King',
+						'amenities' => array( 'Water Villa', 'King', 'Lagoon Access', 'Sun Deck' ),
 					),
 				),
 			),
@@ -317,14 +338,18 @@ class MPK_Seeder {
 						'name'      => 'Sunset Water Villa',
 						'meal'      => 'Breakfast & Dinner',
 						'price'     => 560,
-						'amenities' => array( 'Sea View' ),
+						'room_type' => 'Water Villa',
+						'bed_type'  => 'Double',
+						'amenities' => array( 'Water Villa', 'Sea View', 'Double', 'King' ),
 					),
 					array(
 						'id'        => 'r2',
 						'name'      => 'Royal Suite with Pool',
 						'meal'      => 'All Inclusive',
 						'price'     => 890,
-						'amenities' => array( 'With Pool' ),
+						'room_type' => 'With Pool',
+						'bed_type'  => 'Triple',
+						'amenities' => array( 'With Pool', 'Triple', 'King', 'Private Infinity Pool', 'Butler Service' ),
 					),
 				),
 			),

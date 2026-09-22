@@ -60,8 +60,8 @@ class MPK_Hotel_Meta_Box {
 			.mpk-room-title { font-size: 14px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
 			.mpk-room-grid {
 				display: grid;
-				grid-template-columns: 2fr 1.5fr 1.5fr 1fr;
-				gap: 16px;
+				grid-template-columns: 2fr 1.3fr 1.3fr 1.2fr 1fr;
+				gap: 14px;
 				margin-bottom: 12px;
 			}
 			.mpk-room-grid-full {
@@ -283,6 +283,8 @@ class MPK_Hotel_Meta_Box {
 					'name'      => '',
 					'meal'      => 'Breakfast',
 					'price'     => '',
+					'room_type' => 'Balcony',
+					'bed_type'  => 'Double',
 					'amenities' => array(),
 				)
 			);
@@ -369,19 +371,47 @@ class MPK_Hotel_Meta_Box {
 		$room_id   = isset( $room['id'] ) ? $room['id'] : '';
 		$amenities = isset( $room['amenities'] ) && is_array( $room['amenities'] ) ? implode( ', ', $room['amenities'] ) : ( isset( $room['amenities'] ) ? $room['amenities'] : '' );
 
-		// Detect Bed Type from amenities
-		$bed_type = 'Double';
-		if ( stripos( $amenities, 'Single' ) !== false ) {
-			$bed_type = 'Single';
-		} elseif ( stripos( $amenities, 'Twin' ) !== false ) {
-			$bed_type = 'Twin';
-		} elseif ( stripos( $amenities, 'Triple' ) !== false ) {
-			$bed_type = 'Triple';
-		} elseif ( stripos( $amenities, 'King' ) !== false || stripos( $amenities, 'Master' ) !== false ) {
-			$bed_type = 'King';
-		} elseif ( stripos( $amenities, 'Suite' ) !== false ) {
-			$bed_type = 'Suite';
+		// Room Type detection / fallback
+		$room_type = isset( $room['room_type'] ) ? $room['room_type'] : '';
+		if ( empty( $room_type ) ) {
+			$amenities_lower = strtolower( $amenities . ' ' . $name );
+			if ( strpos( $amenities_lower, 'water villa' ) !== false || strpos( $amenities_lower, 'overwater' ) !== false ) {
+				$room_type = 'Water Villa';
+			} elseif ( strpos( $amenities_lower, 'pool' ) !== false ) {
+				$room_type = 'With Pool';
+			} elseif ( strpos( $amenities_lower, 'sea view' ) !== false || strpos( $amenities_lower, 'ocean' ) !== false ) {
+				$room_type = 'Sea View';
+			} elseif ( strpos( $amenities_lower, 'island view' ) !== false || strpos( $amenities_lower, 'garden' ) !== false || strpos( $amenities_lower, 'city' ) !== false ) {
+				$room_type = 'Island View';
+			} else {
+				$room_type = 'Balcony';
+			}
 		}
+
+		// Detect Bed Type from amenities or room data
+		$bed_type = isset( $room['bed_type'] ) ? $room['bed_type'] : ( isset( $room['bed'] ) ? $room['bed'] : '' );
+		if ( empty( $bed_type ) ) {
+			$amenities_lower = strtolower( $amenities . ' ' . $name );
+			if ( strpos( $amenities_lower, 'single' ) !== false ) {
+				$bed_type = 'Single';
+			} elseif ( strpos( $amenities_lower, 'twin' ) !== false ) {
+				$bed_type = 'Twin';
+			} elseif ( strpos( $amenities_lower, 'triple' ) !== false ) {
+				$bed_type = 'Triple';
+			} elseif ( strpos( $amenities_lower, 'king' ) !== false || strpos( $amenities_lower, 'master' ) !== false ) {
+				$bed_type = 'King';
+			} else {
+				$bed_type = 'Double';
+			}
+		}
+
+		$room_types = array(
+			'Balcony'     => __( 'Balcony View', 'maldives-packages' ),
+			'Sea View'    => __( 'Sea View', 'maldives-packages' ),
+			'Island View' => __( 'Island View', 'maldives-packages' ),
+			'With Pool'   => __( 'With Pool / Villa', 'maldives-packages' ),
+			'Water Villa' => __( 'Water Villa', 'maldives-packages' ),
+		);
 
 		$meal_plans = array(
 			'Breakfast'          => __( 'Breakfast Included', 'maldives-packages' ),
@@ -397,7 +427,6 @@ class MPK_Hotel_Meta_Box {
 			'Single' => __( 'Single Bed', 'maldives-packages' ),
 			'Triple' => __( 'Triple Beds', 'maldives-packages' ),
 			'King'   => __( 'King Master Bed', 'maldives-packages' ),
-			'Suite'  => __( 'Executive Suite Layout', 'maldives-packages' ),
 		);
 		?>
 		<div class="mpk-room-card" data-index="<?php echo esc_attr( $index ); ?>">
@@ -421,6 +450,15 @@ class MPK_Hotel_Meta_Box {
 				</div>
 
 				<div class="mpk-field-group">
+					<label><?php esc_html_e( 'Room Type', 'maldives-packages' ); ?></label>
+					<select name="mpk_rooms[<?php echo esc_attr( $index ); ?>][room_type]">
+						<?php foreach ( $room_types as $rt_val => $rt_label ) : ?>
+							<option value="<?php echo esc_attr( $rt_val ); ?>" <?php selected( $room_type, $rt_val ); ?>><?php echo esc_html( $rt_label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+
+				<div class="mpk-field-group">
 					<label><?php esc_html_e( 'Meal Plan', 'maldives-packages' ); ?></label>
 					<select name="mpk_rooms[<?php echo esc_attr( $index ); ?>][meal]">
 						<?php foreach ( $meal_plans as $m_val => $m_label ) : ?>
@@ -431,7 +469,7 @@ class MPK_Hotel_Meta_Box {
 
 				<div class="mpk-field-group">
 					<label><?php esc_html_e( 'Bed Configuration', 'maldives-packages' ); ?></label>
-					<select name="mpk_rooms[<?php echo esc_attr( $index ); ?>][bed]">
+					<select name="mpk_rooms[<?php echo esc_attr( $index ); ?>][bed_type]">
 						<?php foreach ( $bed_types as $b_val => $b_label ) : ?>
 							<option value="<?php echo esc_attr( $b_val ); ?>" <?php selected( $bed_type, $b_val ); ?>><?php echo esc_html( $b_label ); ?></option>
 						<?php endforeach; ?>
@@ -519,9 +557,10 @@ class MPK_Hotel_Meta_Box {
 						continue;
 					}
 
-					$price = isset( $r['price'] ) ? floatval( $r['price'] ) : 0.0;
-					$meal  = isset( $r['meal'] ) ? sanitize_text_field( $r['meal'] ) : 'Breakfast';
-					$bed   = isset( $r['bed'] ) ? sanitize_text_field( $r['bed'] ) : 'Double';
+					$price     = isset( $r['price'] ) ? floatval( $r['price'] ) : 0.0;
+					$meal      = isset( $r['meal'] ) ? sanitize_text_field( $r['meal'] ) : 'Breakfast';
+					$room_type = isset( $r['room_type'] ) ? sanitize_text_field( $r['room_type'] ) : 'Balcony';
+					$bed_type  = isset( $r['bed_type'] ) ? sanitize_text_field( $r['bed_type'] ) : ( isset( $r['bed'] ) ? sanitize_text_field( $r['bed'] ) : 'Double' );
 
 					$room_id = ! empty( $r['id'] ) ? sanitize_key( $r['id'] ) : 'r' . $room_counter;
 
@@ -537,8 +576,12 @@ class MPK_Hotel_Meta_Box {
 						}
 					}
 
-					if ( ! empty( $bed ) && ! in_array( $bed, $amenities_arr, true ) ) {
-						$amenities_arr[] = $bed;
+					// Ensure bed_type and room_type are included in amenities array for backwards compatibility
+					if ( ! empty( $bed_type ) && ! in_array( $bed_type, $amenities_arr, true ) ) {
+						$amenities_arr[] = $bed_type;
+					}
+					if ( ! empty( $room_type ) && ! in_array( $room_type, $amenities_arr, true ) ) {
+						$amenities_arr[] = $room_type;
 					}
 
 					$sanitized_rooms[] = array(
@@ -546,6 +589,8 @@ class MPK_Hotel_Meta_Box {
 						'name'      => $name,
 						'meal'      => $meal,
 						'price'     => $price,
+						'room_type' => $room_type,
+						'bed_type'  => $bed_type,
 						'amenities' => $amenities_arr,
 					);
 

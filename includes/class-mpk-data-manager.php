@@ -195,18 +195,64 @@ class MPK_Data_Manager {
 					$rooms = get_post_meta( $post_id, '_mpk_rooms', true );
 				}
 
-				// Fallback standard room if no rooms added by admin
-				if ( empty( $rooms ) || ! is_array( $rooms ) ) {
-					$rooms = array(
-						array(
-							'id'        => 'r1',
-							'name'      => __( 'Standard Deluxe Room', 'maldives-packages' ),
-							'meal'      => 'Breakfast Included',
-							'price'     => 140.00,
-							'amenities' => array( 'Double', 'Air Conditioning', 'Free Wifi' ),
-						),
+				// Normalize rooms to ensure room_type and bed_type are always present
+				$normalized_rooms = array();
+				foreach ( $rooms as $rm ) {
+					$rm_name        = isset( $rm['name'] ) ? $rm['name'] : '';
+					$rm_amenities   = isset( $rm['amenities'] ) && is_array( $rm['amenities'] ) ? $rm['amenities'] : array();
+					$amenities_text = strtolower( $rm_name . ' ' . implode( ' ', $rm_amenities ) );
+
+					// Room type normalization
+					$rm_type = isset( $rm['room_type'] ) && ! empty( $rm['room_type'] ) ? $rm['room_type'] : '';
+					if ( empty( $rm_type ) ) {
+						if ( strpos( $amenities_text, 'water villa' ) !== false || strpos( $amenities_text, 'overwater' ) !== false ) {
+							$rm_type = 'Water Villa';
+						} elseif ( strpos( $amenities_text, 'pool' ) !== false ) {
+							$rm_type = 'With Pool';
+						} elseif ( strpos( $amenities_text, 'sea view' ) !== false || strpos( $amenities_text, 'ocean' ) !== false ) {
+							$rm_type = 'Sea View';
+						} elseif ( strpos( $amenities_text, 'island view' ) !== false || strpos( $amenities_text, 'garden' ) !== false || strpos( $amenities_text, 'city' ) !== false ) {
+							$rm_type = 'Island View';
+						} else {
+							$rm_type = 'Balcony';
+						}
+					}
+
+					// Bed type normalization
+					$rm_bed = isset( $rm['bed_type'] ) && ! empty( $rm['bed_type'] ) ? $rm['bed_type'] : ( isset( $rm['bed'] ) ? $rm['bed'] : '' );
+					if ( empty( $rm_bed ) ) {
+						if ( strpos( $amenities_text, 'single' ) !== false ) {
+							$rm_bed = 'Single';
+						} elseif ( strpos( $amenities_text, 'twin' ) !== false ) {
+							$rm_bed = 'Twin';
+						} elseif ( strpos( $amenities_text, 'triple' ) !== false ) {
+							$rm_bed = 'Triple';
+						} elseif ( strpos( $amenities_text, 'king' ) !== false || strpos( $amenities_text, 'master' ) !== false ) {
+							$rm_bed = 'King';
+						} else {
+							$rm_bed = 'Double';
+						}
+					}
+
+					// Ensure amenities include bed and room type for search resilience
+					if ( ! in_array( $rm_bed, $rm_amenities, true ) ) {
+						$rm_amenities[] = $rm_bed;
+					}
+					if ( ! in_array( $rm_type, $rm_amenities, true ) ) {
+						$rm_amenities[] = $rm_type;
+					}
+
+					$normalized_rooms[] = array(
+						'id'        => isset( $rm['id'] ) ? $rm['id'] : 'r1',
+						'name'      => $rm_name,
+						'meal'      => isset( $rm['meal'] ) ? $rm['meal'] : 'Breakfast',
+						'price'     => isset( $rm['price'] ) ? floatval( $rm['price'] ) : 100.0,
+						'room_type' => $rm_type,
+						'bed_type'  => $rm_bed,
+						'amenities' => $rm_amenities,
 					);
 				}
+				$rooms = $normalized_rooms;
 
 				$hotels[] = array(
 					'id'          => $hotel_id,
