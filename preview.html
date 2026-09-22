@@ -466,7 +466,7 @@
                             <div class="mpk-form-field">
                                 <label class="mpk-label" for="mpk-lead-name">
                                     <svg class="mpk-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
-                                    Full Name
+                                    Full Name *
                                 </label>
                                 <input type="text" id="mpk-lead-name" class="mpk-input" placeholder="John Doe" required />
                             </div>
@@ -482,7 +482,7 @@
                             <div class="mpk-form-field">
                                 <label class="mpk-label" for="mpk-lead-email">
                                     <svg class="mpk-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                                    Email Address
+                                    Email Address *
                                 </label>
                                 <input type="email" id="mpk-lead-email" class="mpk-input" placeholder="you@email.com" required />
                             </div>
@@ -510,21 +510,15 @@
                                 </label>
                                 <div class="mpk-file-drop" id="mpk-passport-drop">
                                     <input type="file" id="mpk-passport-file" accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
-                                    <div id="mpk-passport-drop-label" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
+                                    <div id="mpk-passport-drop-label" style="display: flex; align-items: center; gap: 8px;">
                                         <svg class="mpk-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                                        <span style="font-weight: 500; font-size: 13px; color: var(--mpk-text-muted);">Upload passport</span>
+                                        <span style="font-weight: 500; font-size: 13px; color: var(--mpk-text-muted);">Upload passport (PDF or Image, max 10MB)</span>
                                     </div>
                                     <div id="mpk-passport-drop-fileinfo" style="display: none; align-items: center; justify-content: space-between; width: 100%;">
                                         <span id="mpk-passport-filename" style="font-weight: 600; font-size: 13px; color: var(--mpk-text);"></span>
                                         <button type="button" id="mpk-passport-remove" class="mpk-btn-qty-minus" style="width: 24px; height: 24px; font-size: 14px;">&times;</button>
                                     </div>
                                 </div>
-                                <p class="mpk-passport-note">
-                                    Note: Please upload as a <span>single PDF</span> or a <span>single image</span> (PNG / JPG / WEBP), max 10 MB.
-                                </p>
-                                <p class="mpk-passport-note" style="margin-top: 2px;">
-                                    All travellers passport copies must be attached.
-                                </p>
                             </div>
 
                             <div class="mpk-form-field mpk-form-full">
@@ -547,7 +541,7 @@
                         <!-- Package Accordion Item -->
                         <div class="mpk-accordion-item open" id="mpk-acc-package">
                             <div class="mpk-accordion-header">
-                                <span>Package</span>
+                                <span>Package Inclusions &amp; Exclusions</span>
                                 <span class="mpk-icon-chevron"><svg class="mpk-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
                             </div>
                             <div class="mpk-accordion-body" id="mpk-acc-package-body">
