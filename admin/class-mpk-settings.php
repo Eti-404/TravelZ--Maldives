@@ -209,11 +209,6 @@ class MPK_Settings {
 	 * Render the 4-tab Settings Panel.
 	 */
 	public function render_settings_page() {
-		if ( self::$rendered ) {
-			return;
-		}
-		self::$rendered = true;
-
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';
 		$valid_tabs = array( 'general', 'pricing', 'policies', 'payment', 'guide' );
 		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {

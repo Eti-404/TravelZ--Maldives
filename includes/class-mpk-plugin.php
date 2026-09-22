@@ -104,8 +104,10 @@ class MPK_Plugin {
 		require_once MPK_PLUGIN_DIR . 'frontend/class-mpk-frontend.php';
 		new MPK_Frontend();
 
-		// Initialize admin dashboard controller.
+		// Initialize admin dashboard controller and settings.
 		if ( is_admin() ) {
+			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-settings.php';
+			MPK_Settings::get_instance();
 			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-admin.php';
 			new MPK_Admin();
 		}

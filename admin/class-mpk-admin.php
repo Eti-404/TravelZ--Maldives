@@ -113,9 +113,10 @@ class MPK_Admin {
 	 * Render settings page callback.
 	 */
 	public function render_settings_page() {
-		if ( class_exists( 'MPK_Settings' ) ) {
-			MPK_Settings::render_page();
+		if ( ! class_exists( 'MPK_Settings' ) ) {
+			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-settings.php';
 		}
+		MPK_Settings::render_page();
 	}
 
 	/**
