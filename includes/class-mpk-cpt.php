@@ -23,7 +23,7 @@ class MPK_CPT {
 	public function __construct() {
 		add_action( 'init', array( $this, 'register_post_types' ), 5 );
 		add_action( 'init', array( $this, 'register_taxonomies' ), 5 );
-		add_action( 'admin_menu', array( $this, 'register_admin_menus' ) );
+		// Note: Admin menus are centralized under Maldives Packages in MPK_Admin::register_unified_admin_menu()
 	}
 
 	/**
@@ -129,43 +129,10 @@ class MPK_CPT {
 	}
 
 	/**
-	 * Register Unified Maldives Packages Admin Menu.
+	 * Register Unified Maldives Packages Admin Menu (Deprecated / Centralized in MPK_Admin).
 	 */
 	public function register_admin_menus() {
-		add_menu_page(
-			__( 'Package Inventory', 'maldives-packages' ),
-			__( 'Package Inventory', 'maldives-packages' ),
-			'manage_options',
-			'mpk-packages',
-			array( $this, 'render_main_admin_page' ),
-			'dashicons-palmtree',
-			25
-		);
-
-		add_submenu_page(
-			'mpk-packages',
-			__( 'Hotels & Stays', 'maldives-packages' ),
-			__( 'Hotels & Stays', 'maldives-packages' ),
-			'manage_options',
-			'edit.php?post_type=mpk_hotel'
-		);
-
-		add_submenu_page(
-			'mpk-packages',
-			__( 'Destinations', 'maldives-packages' ),
-			__( 'Destinations', 'maldives-packages' ),
-			'manage_options',
-			'edit-tags.php?taxonomy=mpk_destination&post_type=mpk_hotel'
-		);
-
-		add_submenu_page(
-			'mpk-packages',
-			__( 'Package Settings', 'maldives-packages' ),
-			__( 'Settings', 'maldives-packages' ),
-			'manage_options',
-			'mpk-settings',
-			array( $this, 'render_settings_page' )
-		);
+		// Centralized under 'Maldives Packages' in MPK_Admin::register_unified_admin_menu()
 	}
 
 	/**

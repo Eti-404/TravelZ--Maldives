@@ -317,6 +317,9 @@
 		if (bt === 'triple') {
 			return rBed === 'triple' || rAmenities.indexOf('triple') !== -1 || /\btriple\b/i.test(rName) || /\b(family|3\s*bed)\b/i.test(rName);
 		}
+		if (bt === 'king') {
+			return rBed === 'king' || rAmenities.indexOf('king') !== -1 || /\b(king|master)\b/i.test(rName);
+		}
 		return rBed === bt || rAmenities.indexOf(bt) !== -1;
 	}
 

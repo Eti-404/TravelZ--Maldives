@@ -431,6 +431,11 @@ class MPK_Frontend {
 										<span class="mpk-radio-dot"></span>
 										<span class="mpk-filter-label">Triple</span>
 									</label>
+									<label class="mpk-filter-item mpk-filter-radio-item">
+										<input type="checkbox" name="mpk_beds" value="King" />
+										<span class="mpk-radio-dot"></span>
+										<span class="mpk-filter-label">King</span>
+									</label>
 								</div>
 
 								<!-- Room Type with Circular Radio-Dot Controls -->
