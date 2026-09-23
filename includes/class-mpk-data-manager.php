@@ -110,6 +110,14 @@ class MPK_Data_Manager {
 
 		$hotels = array();
 
+		// Default display order of seeded hotels (matches the reference design).
+		$default_orders = array();
+		foreach ( MPK_Seeder::get_default_hotels() as $dh ) {
+			if ( ! empty( $dh['id'] ) && ! empty( $dh['menu_order'] ) ) {
+				$default_orders[ $dh['id'] ] = (int) $dh['menu_order'];
+			}
+		}
+
 		if ( ! empty( $posts ) ) {
 			foreach ( $posts as $p ) {
 				$post_id = $p->ID;
@@ -285,6 +293,10 @@ class MPK_Data_Manager {
 				$rooms = $normalized_rooms;
 
 				$menu_order = isset( $p->menu_order ) && $p->menu_order > 0 ? (int) $p->menu_order : (int) get_post_meta( $post_id, '_mpk_menu_order', true );
+				if ( $menu_order <= 0 && isset( $default_orders[ $hotel_id ] ) ) {
+					// Older installs were seeded without an order: fall back to the reference order.
+					$menu_order = $default_orders[ $hotel_id ];
+				}
 
 				$hotels[] = array(
 					'id'          => $hotel_id,

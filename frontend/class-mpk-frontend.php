@@ -373,7 +373,7 @@ class MPK_Frontend {
 							<span>Total travelers</span>
 							<span class="mpk-travelers-count" id="mpk-total-travelers">2</span>
 						</div>
-						<p class="mpk-occupancy-hint" id="mpk-occupancy-hint" style="margin: 10px 0 0; font-size: 12px; color: var(--mpk-text-muted);"></p>
+						<p class="mpk-occupancy-hint" id="mpk-occupancy-hint"></p>
 					</section>
 
 					<!-- STEP 2: HOTEL SELECTION -->
@@ -442,7 +442,7 @@ class MPK_Frontend {
 								</div>
 
 								<!-- Bed Type with Circular Radio-Dot Controls -->
-								<div class="mpk-filter-accordion-item" data-filter="beds">
+								<div class="mpk-filter-accordion-item collapsed" data-filter="beds">
 									<div class="mpk-filter-title">
 										<span>Bed Type</span>
 										<?php echo self::get_icon( 'chevron-down', 16, 16 ); ?>
@@ -477,7 +477,7 @@ class MPK_Frontend {
 								</div>
 
 								<!-- Room Type with Circular Radio-Dot Controls -->
-								<div class="mpk-filter-accordion-item" data-filter="rooms">
+								<div class="mpk-filter-accordion-item collapsed" data-filter="rooms">
 									<div class="mpk-filter-title">
 										<span>Room Type</span>
 										<?php echo self::get_icon( 'chevron-down', 16, 16 ); ?>
@@ -539,9 +539,9 @@ class MPK_Frontend {
 
 					<!-- STEP 3: REVIEW & DETAILS -->
 					<section class="mpk-step-pane" id="mpk-pane-3" data-step="3">
-						<div class="mpk-section-header">
+						<div class="mpk-section-header mpk-section-header-stacked mpk-section-header-sm">
 							<h3>Review your booking</h3>
-							<span class="mpk-badge-hint">Please confirm all the details below before booking.</span>
+							<p class="mpk-section-sub">Please confirm all the details below before booking.</p>
 						</div>
 
 						<!-- Overview Stats -->
@@ -567,13 +567,11 @@ class MPK_Frontend {
 						<!-- Lead Traveler Form (clean, placeholder-only fields) -->
 						<div class="mpk-review-block">
 							<h4 class="mpk-review-heading">Lead Traveler Details</h4>
-							<p style="font-size: 13px; color: var(--mpk-text-muted); margin-top: -8px; margin-bottom: 20px;">
-								We'll send your booking confirmation here.
-							</p>
+							<p class="mpk-review-subtext">We'll send your booking confirmation here.</p>
 							<div class="mpk-form-grid">
 								<div class="mpk-form-field">
 									<label class="mpk-label" for="mpk-lead-name">
-										<?php echo self::get_icon( 'user', 14, 14 ); ?> Full Name *
+										<?php echo self::get_icon( 'user', 14, 14 ); ?> Full Name
 									</label>
 									<input type="text" id="mpk-lead-name" class="mpk-input" placeholder="John Doe" value="" required />
 								</div>
@@ -587,7 +585,7 @@ class MPK_Frontend {
 
 								<div class="mpk-form-field">
 									<label class="mpk-label" for="mpk-lead-email">
-										<?php echo self::get_icon( 'mail', 14, 14 ); ?> Email Address *
+										<?php echo self::get_icon( 'mail', 14, 14 ); ?> Email Address
 									</label>
 									<input type="email" id="mpk-lead-email" class="mpk-input" placeholder="you@email.com" value="" required />
 								</div>
@@ -618,15 +616,17 @@ class MPK_Frontend {
 									</label>
 									<div class="mpk-file-drop" id="mpk-passport-drop">
 										<input type="file" id="mpk-passport-file" accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
-										<div id="mpk-passport-drop-label" style="display: flex; align-items: center; gap: 8px;">
+										<div id="mpk-passport-drop-label" class="mpk-file-drop-label">
 											<?php echo self::get_icon( 'upload', 16, 16 ); ?>
-											<span style="font-weight: 500; font-size: 13px; color: var(--mpk-text-muted);">Upload passport (PDF or Image, max 10MB)</span>
+											<span>Upload passport</span>
 										</div>
 										<div id="mpk-passport-drop-fileinfo" style="display: none; align-items: center; justify-content: space-between; width: 100%;">
-											<span id="mpk-passport-filename" style="font-weight: 600; font-size: 13px; color: var(--mpk-text);"></span>
-											<button type="button" id="mpk-passport-remove" class="mpk-btn-qty-minus" style="width: 24px; height: 24px; font-size: 14px;">&times;</button>
+											<span id="mpk-passport-filename" class="mpk-file-name"></span>
+											<button type="button" id="mpk-passport-remove" class="mpk-btn-qty-minus mpk-file-remove">&times;</button>
 										</div>
 									</div>
+									<p class="mpk-file-note">Note: Please upload as a <span>single PDF</span> or a <span>single image</span> (PNG / JPG / WEBP), max 10 MB.</p>
+									<p class="mpk-file-note mpk-file-note-2">All travellers passport copies must be attached.</p>
 								</div>
 
 								<div class="mpk-form-field mpk-form-full">
@@ -648,7 +648,7 @@ class MPK_Frontend {
 							<!-- Package Accordion Item -->
 							<div class="mpk-accordion-item open" id="mpk-acc-package">
 								<div class="mpk-accordion-header">
-									<span>Package Inclusions &amp; Exclusions</span>
+									<span>Package</span>
 									<span class="mpk-icon-chevron"><?php echo self::get_icon( 'chevron-down', 16, 16 ); ?></span>
 								</div>
 								<div class="mpk-accordion-body" id="mpk-acc-package-body">
@@ -709,9 +709,9 @@ class MPK_Frontend {
 
 					<!-- STEP 4: PAYMENT SELECTION -->
 					<section class="mpk-step-pane" id="mpk-pane-4" data-step="4">
-						<div class="mpk-section-header">
+						<div class="mpk-section-header mpk-section-header-stacked">
 							<h3>Choose your payment method</h3>
-							<span class="mpk-badge-hint">Select how you'd like to complete your booking payment.</span>
+							<p class="mpk-section-sub">Select how you'd like to complete your booking payment.</p>
 						</div>
 
 						<div class="mpk-payment-options">
@@ -751,7 +751,7 @@ class MPK_Frontend {
 								<div style="flex: 1;">
 									<div style="display: flex; align-items: center; gap: 8px;">
 										<p class="mpk-payment-title">Card Payment</p>
-										<span class="mpk-pill" style="background: #f1f5f9; color: #94a3b8; font-size: 10px;">Unavailable for now</span>
+										<span class="mpk-pill mpk-pill-unavailable">Unavailable for now</span>
 									</div>
 									<p class="mpk-payment-desc">Pay securely with credit or debit card.</p>
 								</div>
@@ -761,58 +761,55 @@ class MPK_Frontend {
 
 					<!-- STEP 5: CONFIRMATION -->
 					<section class="mpk-step-pane" id="mpk-pane-5" data-step="5">
-						<div class="mpk-confirm-banner">
-							<div class="mpk-confirm-icon">
-								<?php echo self::get_icon( 'check-circle-2', 36, 36 ); ?>
-							</div>
-							<h3 class="mpk-confirm-title">Booking Confirmation</h3>
-							<p style="margin: 0; opacity: 0.9; font-size: 14px;">Thank you for choosing Travel Z</p>
-						</div>
-
-						<div class="mpk-review-block">
-							<div class="mpk-confirm-code-card">
-								<div>
-									<p style="font-size: 11px; text-transform: uppercase; color: var(--mpk-text-muted); margin: 0 0 4px; font-weight: 700;">
-										Booking Confirmation Number
-									</p>
-									<span class="mpk-confirm-code-text" id="mpk-confirm-code-display">MPK-PENDING</span>
+						<div class="mpk-confirm-card">
+							<div class="mpk-confirm-banner">
+								<div class="mpk-confirm-icon">
+									<?php echo self::get_icon( 'check-circle-2', 36, 36 ); ?>
 								</div>
-								<button type="button" id="mpk-btn-copy-code" class="mpk-btn-copy" aria-label="Copy confirmation number">
-									<?php echo self::get_icon( 'copy', 14, 14 ); ?>
-									<span class="mpk-btn-copy-text">Copy</span>
-								</button>
+								<h3 class="mpk-confirm-title">Booking Confirmation</h3>
+								<p class="mpk-confirm-sub">Thank you for choosing Travel Z</p>
 							</div>
 
-							<p>Thank you for choosing <strong>Travel Z</strong>.</p>
-							<p>Your booking request has been successfully received.</p>
-							<p>
-								A confirmation email has been sent to
-								<strong id="mpk-confirm-email-display">your email</strong>.
-							</p>
-							<p>
-								Our Travel Concierge will contact you within <strong>24 hours</strong> to review your booking and provide further assistance.
-							</p>
+							<div class="mpk-confirm-body">
+								<div class="mpk-confirm-code-card">
+									<p class="mpk-confirm-code-label">Booking Confirmation Number</p>
+									<div class="mpk-confirm-code-row">
+										<span class="mpk-confirm-code-text" id="mpk-confirm-code-display">MPK-PENDING</span>
+										<button type="button" id="mpk-btn-copy-code" class="mpk-btn-copy" aria-label="Copy confirmation number">
+											<?php echo self::get_icon( 'copy', 14, 14 ); ?>
+											<span class="mpk-btn-copy-text">Copy</span>
+										</button>
+									</div>
+								</div>
 
-							<div class="mpk-info-box" style="background: #fffbeb; border-color: #fde68a; color: #92400e; margin: 16px 0;">
-								<span style="color: #d97706;"><?php echo self::get_icon( 'clock', 18, 18 ); ?></span>
-								<p style="margin: 0; font-size: 13px;">
-									<strong>Status:</strong> Pending Travel Z Approval
+								<p>Thank you for choosing <strong>Travel Z</strong>.</p>
+								<p>Your booking request has been successfully received.</p>
+								<p>
+									A confirmation email has been sent to
+									<a href="#" class="mpk-confirm-email-link" id="mpk-confirm-email-display">your email</a>.
 								</p>
-							</div>
+								<p>
+									Our Travel Concierge will contact you within <strong>24 hours</strong> to review your booking and provide further assistance.
+								</p>
 
-							<p style="font-size: 13px; color: var(--mpk-text-muted); background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--mpk-border);">
-								<strong>Please note:</strong> Your booking is <strong>not yet confirmed</strong>. It will be confirmed only after it has been reviewed and approved by the Travel Z team.
-							</p>
+								<div class="mpk-confirm-status">
+									<?php echo self::get_icon( 'clock', 16, 16 ); ?>
+									<p><strong>Status:</strong> Pending Travel Z Approval</p>
+								</div>
 
-							<!-- Centered Clean Amount Box without Extra Green Badge -->
-							<div class="mpk-confirm-amount-box">
-								<p class="mpk-confirm-amount-label">Amount to pay</p>
-								<p class="mpk-confirm-amount-val" id="mpk-confirm-amount-display">$0.00</p>
+								<p class="mpk-confirm-note">
+									<strong>Please note:</strong> Your booking is <strong>not yet confirmed</strong>. It will be confirmed only after it has been reviewed and approved by the Travel Z team.
+								</p>
+
+								<div class="mpk-confirm-amount-box">
+									<p class="mpk-confirm-amount-label">Amount to pay</p>
+									<p class="mpk-confirm-amount-val" id="mpk-confirm-amount-display">$0.00</p>
+								</div>
 							</div>
 						</div>
 
 						<!-- Payment Instructions Card -->
-						<div class="mpk-review-block">
+						<div class="mpk-review-block mpk-instructions-card">
 							<h4 class="mpk-review-heading">Payment Instructions</h4>
 							<div id="mpk-payment-instructions-body">
 								<!-- Dynamic based on selected payment method -->

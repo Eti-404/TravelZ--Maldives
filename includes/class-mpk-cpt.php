@@ -82,7 +82,7 @@ class MPK_CPT {
 			'has_archive'        => false,
 			'hierarchical'       => false,
 			'menu_position'      => 27,
-			'supports'           => array( 'title', 'thumbnail', 'custom-fields' ),
+			'supports'           => array( 'title', 'thumbnail', 'custom-fields', 'page-attributes' ),
 			'show_in_rest'       => true,
 		);
 		register_post_type( 'mpk_hotel', $hotel_args );
