@@ -616,6 +616,15 @@
 		var ok = canContinue();
 		btnNext.disabled = !ok || isSubmitting;
 
+		// A failed submission stays visible (red) until the user changes step / payment or retries
+		var hintWrap = hint ? hint.parentNode : null;
+		if (hintWrap) hintWrap.classList.toggle('mpk-has-error', !!(state.submitError && state.step === 4));
+		if (hint && !isSubmitting && state.submitError && state.step === 4) {
+			hint.textContent = state.submitError;
+			hint.style.color = '#dc2626';
+			return;
+		}
+
 		if (hint && !isSubmitting) {
 			if (ok) {
 				hint.textContent = '';
@@ -631,6 +640,7 @@
 
 	function setStep(newStep) {
 		if (newStep < 1 || newStep > 5) return;
+		state.submitError = '';
 		state.step = newStep;
 
 		// Update step panes
@@ -1787,6 +1797,7 @@
 				if (this.classList.contains('disabled')) return;
 				var method = this.getAttribute('data-payment-method');
 				state.paymentMethod = method;
+				state.submitError = '';
 
 				for (var j = 0; j < paymentCards.length; j++) {
 					paymentCards[j].classList.remove('selected');
@@ -1880,6 +1891,7 @@
 	// AJAX Booking Submission for Step 4
 	function submitBooking() {
 		if (isSubmitting) return;
+		state.submitError = '';
 
 		var btnNext = document.querySelector('.mpk-btn-next');
 		var nextLabel = document.getElementById('mpk-btn-next-label');
@@ -1922,8 +1934,8 @@
 		}
 		formData.append('special_requests', (state.form && state.form.request) ? state.form.request.trim() : '');
 		formData.append('payment_method', state.paymentMethod || '');
-		var hpField = document.getElementById('mpk-hp-website');
-		formData.append('mpk_website', hpField ? hpField.value : '');
+		var hpField = document.getElementById('mpk-hp-field');
+		formData.append('mpk_hp_check', hpField ? hpField.value : '');
 
 		// Aggregate locations
 		var locNames = [];
@@ -2008,20 +2020,13 @@
 				state.serverTotal = (typeof result.data.grand_total === 'number') ? result.data.grand_total : null;
 				setStep(5);
 			} else {
-				var errMsg = (result && result.data && result.data.message) ? result.data.message : 'Booking submission failed. Please try again.';
-				if (hint) {
-					hint.textContent = errMsg;
-					hint.style.color = '#dc2626';
-				}
+				state.submitError = (result && result.data && result.data.message) ? result.data.message : 'Booking submission failed. Please try again.';
 				updateNavState();
 			}
 		})
 		.catch(function (error) {
 			isSubmitting = false;
-			if (hint) {
-				hint.textContent = 'Server connection error. Please try again.';
-				hint.style.color = '#dc2626';
-			}
+			state.submitError = 'Server connection error. Please try again.';
 			updateNavState();
 		});
 	}

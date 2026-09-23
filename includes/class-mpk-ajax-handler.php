@@ -92,36 +92,66 @@ class MPK_Ajax_Handler {
 	}
 
 	/**
-	 * Simple per-IP rate limiter backed by transients.
+	 * Per-IP rate limiter key + settings.
 	 *
-	 * @return bool True if the request is allowed.
+	 * @return array{key:string,max:int,window:int}
+	 */
+	private static function rate_limit_config() {
+		// REMOTE_ADDR only - forwarded headers are client-controlled and spoofable.
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		return array(
+			'key'    => 'mpk_rl_' . md5( $ip ),
+			'max'    => (int) apply_filters( 'mpk_booking_rate_limit_max', 10 ),
+			'window' => (int) apply_filters( 'mpk_booking_rate_limit_window', 15 * MINUTE_IN_SECONDS ),
+		);
+	}
+
+	/**
+	 * Whether this IP may submit another booking.
+	 * Only successful bookings are counted (see record_rate_limit_hit), so
+	 * validation errors never lock a real customer out. Administrators are exempt.
+	 *
+	 * @return int 0 when allowed, otherwise seconds until the next booking is possible.
 	 */
 	private static function check_rate_limit() {
-		$max    = (int) apply_filters( 'mpk_booking_rate_limit_max', 5 );
-		$window = (int) apply_filters( 'mpk_booking_rate_limit_window', 15 * MINUTE_IN_SECONDS );
-		if ( $max <= 0 ) {
-			return true;
+		if ( current_user_can( 'manage_options' ) ) {
+			return 0;
 		}
+		$c = self::rate_limit_config();
+		if ( $c['max'] <= 0 ) {
+			return 0;
+		}
+		$data = get_transient( $c['key'] );
+		if ( ! is_array( $data ) || empty( $data['start'] ) ) {
+			return 0;
+		}
+		$elapsed = time() - (int) $data['start'];
+		if ( $elapsed > $c['window'] || (int) $data['count'] < $c['max'] ) {
+			return 0;
+		}
+		return max( 1, $c['window'] - $elapsed );
+	}
 
-		// REMOTE_ADDR only - forwarded headers are client-controlled and spoofable.
-		$ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
-		$key = 'mpk_rl_' . md5( $ip );
-
-		$data = get_transient( $key );
-		if ( ! is_array( $data ) || empty( $data['start'] ) || ( time() - (int) $data['start'] ) > $window ) {
+	/**
+	 * Count one successful booking for this IP.
+	 */
+	private static function record_rate_limit_hit() {
+		if ( current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$c = self::rate_limit_config();
+		if ( $c['max'] <= 0 ) {
+			return;
+		}
+		$data = get_transient( $c['key'] );
+		if ( ! is_array( $data ) || empty( $data['start'] ) || ( time() - (int) $data['start'] ) > $c['window'] ) {
 			$data = array(
 				'start' => time(),
 				'count' => 0,
 			);
 		}
-
-		if ( (int) $data['count'] >= $max ) {
-			return false;
-		}
-
 		$data['count'] = (int) $data['count'] + 1;
-		set_transient( $key, $data, $window );
-		return true;
+		set_transient( $c['key'], $data, $c['window'] );
 	}
 
 	/**
@@ -357,18 +387,36 @@ class MPK_Ajax_Handler {
 			);
 		}
 
-		// 1.1 Honeypot: real users never fill the hidden "website" field
-		if ( ! empty( $_POST['mpk_website'] ) ) {
+		// 1.1 Honeypot: hidden field that real users (and browser autofill) never fill
+		if ( ! empty( $_POST['mpk_hp_check'] ) ) {
 			wp_send_json_error(
-				array( 'message' => __( 'Booking could not be submitted. Please try again.', 'maldives-packages' ) ),
+				array( 'message' => __( 'Your booking was flagged as automated and could not be submitted. Please refresh the page and try again.', 'maldives-packages' ) ),
 				400
 			);
 		}
 
-		// 1.2 Rate limit per IP (default: 5 submissions / 15 minutes)
-		if ( ! self::check_rate_limit() ) {
+		// 1.2 Rate limit per IP (default: 10 successful bookings / 15 minutes)
+		$retry_after = self::check_rate_limit();
+		if ( $retry_after > 0 ) {
+			$c       = self::rate_limit_config();
+			$minutes = max( 1, (int) ceil( $retry_after / MINUTE_IN_SECONDS ) );
 			wp_send_json_error(
-				array( 'message' => __( 'Too many booking attempts. Please wait a few minutes and try again.', 'maldives-packages' ) ),
+				array(
+					'code'        => 'rate_limited',
+					'retry_after' => $retry_after,
+					'message'     => sprintf(
+						/* translators: 1: max bookings, 2: window in minutes, 3: minutes to wait */
+						_n(
+							'Booking limit reached: only %1$d bookings are allowed from the same network every %2$d minutes. Please try again in %3$d minute.',
+							'Booking limit reached: only %1$d bookings are allowed from the same network every %2$d minutes. Please try again in %3$d minutes.',
+							$minutes,
+							'maldives-packages'
+						),
+						$c['max'],
+						max( 1, (int) round( $c['window'] / MINUTE_IN_SECONDS ) ),
+						$minutes
+					),
+				),
 				429
 			);
 		}
@@ -605,6 +653,7 @@ class MPK_Ajax_Handler {
 		}
 
 		// 7. Successful Response
+		self::record_rate_limit_hit();
 		wp_send_json_success(
 			array(
 				'reference_id' => $result['reference_id'],

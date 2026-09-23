@@ -4586,3 +4586,25 @@ main > .mpk-booking-app:first-child,
 	background: var(--mpk-bg) !important;
 	box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1) !important;
 }
+
+/* Submission errors must be visible on every screen size */
+.mpk-booking-app .mpk-step-nav-center.mpk-has-error {
+	display: block;
+}
+
+@media (max-width: 639px) {
+	.mpk-booking-app .mpk-step-nav:has(.mpk-has-error) {
+		flex-wrap: wrap;
+	}
+
+	.mpk-booking-app .mpk-step-nav-center.mpk-has-error {
+		order: -1;
+		width: 100%;
+		flex-basis: 100%;
+	}
+
+	.mpk-booking-app .mpk-step-nav-center.mpk-has-error .mpk-validation-hint {
+		display: block;
+		text-align: center;
+	}
+}
