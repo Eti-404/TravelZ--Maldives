@@ -41,6 +41,48 @@ class MPK_Ajax_Handler {
 	}
 
 	/**
+	 * Room occupancy limits (filterable). Infants are not counted as guests.
+	 *
+	 * @return array{max_adults:int,max_guests:int,max_infants:int}
+	 */
+	public static function get_occupancy_rules() {
+		$rules = (array) apply_filters(
+			'mpk_room_occupancy',
+			array(
+				'max_adults'  => 3, // Adults per room.
+				'max_guests'  => 4, // Adults + children per room.
+				'max_infants' => 2, // Infants per room.
+			)
+		);
+		return array(
+			'max_adults'  => max( 1, (int) $rules['max_adults'] ),
+			'max_guests'  => max( 1, (int) $rules['max_guests'] ),
+			'max_infants' => max( 0, (int) $rules['max_infants'] ),
+		);
+	}
+
+	/**
+	 * Validate guest counts against room occupancy limits.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function validate_occupancy( $adults, $children, $infants, $rooms ) {
+		$o = self::get_occupancy_rules();
+		if ( $rooms > $adults ) {
+			return new WP_Error( 'mpk_occupancy', __( 'Each room needs at least one adult.', 'maldives-packages' ) );
+		}
+		if ( $adults > $o['max_adults'] * $rooms || ( $adults + $children ) > $o['max_guests'] * $rooms ) {
+			/* translators: 1: max adults per room, 2: max guests per room */
+			return new WP_Error( 'mpk_occupancy', sprintf( __( 'Too many guests for the selected rooms (max %1$d adults / %2$d guests per room). Please add another room.', 'maldives-packages' ), $o['max_adults'], $o['max_guests'] ) );
+		}
+		if ( $infants > $o['max_infants'] * $rooms ) {
+			/* translators: %d: max infants per room */
+			return new WP_Error( 'mpk_occupancy', sprintf( __( 'Maximum %d infants per room. Please add another room.', 'maldives-packages' ), $o['max_infants'] ) );
+		}
+		return true;
+	}
+
+	/**
 	 * Allowed payment methods ("card" is disabled in the UI until a gateway exists).
 	 *
 	 * @return string[]
@@ -297,6 +339,17 @@ class MPK_Ajax_Handler {
 		$children    = isset( $_POST['children'] ) ? min( 20, absint( $_POST['children'] ) ) : 0;
 		$infants     = isset( $_POST['infants'] ) ? min( 10, absint( $_POST['infants'] ) ) : 0;
 		$rooms_count = isset( $_POST['rooms_count'] ) ? min( 10, max( 1, absint( $_POST['rooms_count'] ) ) ) : 1;
+
+		$occupancy = self::validate_occupancy( $adults, $children, $infants, $rooms_count );
+		if ( is_wp_error( $occupancy ) ) {
+			wp_send_json_error(
+				array(
+					'field'   => 'guests',
+					'message' => $occupancy->get_error_message(),
+				),
+				400
+			);
+		}
 
 		// 4.1 Rebuild trip details & price server-side (never trust client totals / names)
 		$raw_selections = isset( $_POST['selections'] ) ? json_decode( wp_unslash( $_POST['selections'] ), true ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized per field below.

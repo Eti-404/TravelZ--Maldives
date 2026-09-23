@@ -373,6 +373,7 @@ class MPK_Frontend {
 							<span>Total travelers</span>
 							<span class="mpk-travelers-count" id="mpk-total-travelers">2</span>
 						</div>
+						<p class="mpk-occupancy-hint" id="mpk-occupancy-hint" style="margin: 10px 0 0; font-size: 12px; color: var(--mpk-text-muted);"></p>
 					</section>
 
 					<!-- STEP 2: HOTEL SELECTION -->

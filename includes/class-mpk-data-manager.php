@@ -416,6 +416,7 @@ class MPK_Data_Manager {
 			'locations'  => self::get_locations(),
 			'hotels'     => self::get_hotels(),
 			'settings'   => self::get_settings(),
+			'occupancy'  => class_exists( 'MPK_Ajax_Handler' ) ? MPK_Ajax_Handler::get_occupancy_rules() : array( 'max_adults' => 3, 'max_guests' => 4, 'max_infants' => 2 ),
 		);
 	}
 }

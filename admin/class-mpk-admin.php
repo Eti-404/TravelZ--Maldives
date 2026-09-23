@@ -248,6 +248,13 @@ class MPK_Admin {
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'mpk_bookings';
 
+		$old_status = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$table_name} WHERE id = %d", $booking_id ) );
+		if ( null === $old_status ) {
+			wp_send_json_error( array( 'message' => __( 'Booking not found.', 'maldives-packages' ) ), 404 );
+		}
+		// Treat legacy "Confirmed" as "Approved" so re-approving does not re-send email.
+		$status_changed = ( 'Confirmed' === $old_status ? 'Approved' : $old_status ) !== $new_status;
+
 		$updated = $wpdb->update(
 			$table_name,
 			array( 'status' => $new_status ),
@@ -260,8 +267,8 @@ class MPK_Admin {
 			wp_send_json_error( array( 'message' => __( 'Failed to update database record.', 'maldives-packages' ) ), 500 );
 		}
 
-		// Trigger Automated Customer Status-Update Email
-		if ( class_exists( 'MPK_Mailer' ) ) {
+		// Trigger Automated Customer Status-Update Email (only when the status actually changed)
+		if ( $status_changed && class_exists( 'MPK_Mailer' ) ) {
 			try {
 				MPK_Mailer::send_status_update_email( $booking_id, $new_status );
 			} catch ( \Throwable $e ) {
@@ -523,6 +530,7 @@ class MPK_Admin {
 									'payment_method'    => $payment_label,
 									'status'            => $b->status,
 									'created_at'        => gmdate( 'd M Y, H:i', strtotime( $b->created_at ) ),
+									'items'             => ( ! empty( $b->booking_items ) && is_array( json_decode( $b->booking_items, true ) ) ) ? json_decode( $b->booking_items, true ) : array(),
 								);
 								?>
 								<tr id="mpk-booking-row-<?php echo esc_attr( $b->id ); ?>">
@@ -722,6 +730,23 @@ class MPK_Admin {
 								<span class="mpk-modal-val" id="mpk-modal-pricing" style="color: #0284c7; font-weight: 700;">—</span>
 							</div>
 						</div>
+					</div>
+
+					<!-- Per-room Itinerary (from booking_items) -->
+					<div class="mpk-modal-section" id="mpk-modal-items-section" style="display: none;">
+						<h4 class="mpk-modal-section-title"><span class="dashicons dashicons-list-view"></span> <?php esc_html_e( 'Room-by-Room Itinerary', 'maldives-packages' ); ?></h4>
+						<table class="widefat striped" style="border-radius: 8px; overflow: hidden;">
+							<thead>
+								<tr>
+									<th><?php esc_html_e( 'Hotel / Room', 'maldives-packages' ); ?></th>
+									<th><?php esc_html_e( 'Destination', 'maldives-packages' ); ?></th>
+									<th><?php esc_html_e( 'Dates', 'maldives-packages' ); ?></th>
+									<th style="text-align: right;"><?php esc_html_e( 'Rate', 'maldives-packages' ); ?></th>
+									<th style="text-align: right;"><?php esc_html_e( 'Room Total', 'maldives-packages' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="mpk-modal-items-body"></tbody>
+						</table>
 					</div>
 
 					<!-- Special Requests Box -->
@@ -1370,6 +1395,36 @@ class MPK_Admin {
 					document.getElementById('mpk-modal-pricing').textContent = '$' + data.grand_total + ' (' + data.payment_method + ')';
 
 					document.getElementById('mpk-modal-notes').textContent = data.special_requests || 'No special requests submitted by customer.';
+
+					// Room-by-room itinerary (built with textContent - no HTML injection)
+					var itemsSection = document.getElementById('mpk-modal-items-section');
+					var itemsBody = document.getElementById('mpk-modal-items-body');
+					if (itemsSection && itemsBody) {
+						while (itemsBody.firstChild) itemsBody.removeChild(itemsBody.firstChild);
+						var items = Array.isArray(data.items) ? data.items : [];
+						for (var it = 0; it < items.length; it++) {
+							var itm = items[it] || {};
+							var nights = parseInt(itm.nights, 10) || 0;
+							var rooms = parseInt(itm.rooms, 10) || 1;
+							var rate = parseFloat(itm.price) || 0;
+							var cells = [
+								(itm.hotel || '—') + ' · ' + (itm.room || '—'),
+								itm.location || '—',
+								(itm.check_in || '?') + ' → ' + (itm.check_out || '?') + ' (' + nights + ' ' + (nights === 1 ? 'night' : 'nights') + ')',
+								'$' + rate.toFixed(2) + (rooms > 1 ? ' × ' + rooms + ' rooms' : ''),
+								'$' + (rate * nights * rooms).toFixed(2)
+							];
+							var tr = document.createElement('tr');
+							for (var ci = 0; ci < cells.length; ci++) {
+								var td = document.createElement('td');
+								td.textContent = cells[ci];
+								if (ci >= 3) td.style.textAlign = 'right';
+								tr.appendChild(td);
+							}
+							itemsBody.appendChild(tr);
+						}
+						itemsSection.style.display = items.length ? 'block' : 'none';
+					}
 
 					modal.style.display = 'flex';
 				}

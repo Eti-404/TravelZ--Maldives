@@ -76,6 +76,9 @@ class MPK_CPT {
 			'query_var'          => false,
 			'rewrite'            => false,
 			'capability_type'    => 'post',
+			// Only administrators may create/edit hotels & room prices.
+			'capabilities'       => self::admin_only_post_caps(),
+			'map_meta_cap'       => true,
 			'has_archive'        => false,
 			'hierarchical'       => false,
 			'menu_position'      => 27,
@@ -120,6 +123,19 @@ class MPK_CPT {
 	}
 
 	/**
+	 * Primitive post capabilities mapped to manage_options (administrators only).
+	 *
+	 * @return array
+	 */
+	private static function admin_only_post_caps() {
+		$caps = array();
+		foreach ( array( 'edit_posts', 'edit_others_posts', 'edit_private_posts', 'edit_published_posts', 'publish_posts', 'read_private_posts', 'delete_posts', 'delete_private_posts', 'delete_published_posts', 'delete_others_posts', 'create_posts' ) as $cap ) {
+			$caps[ $cap ] = 'manage_options';
+		}
+		return $caps;
+	}
+
+	/**
 	 * Register Custom Taxonomies.
 	 */
 	public function register_taxonomies() {
@@ -145,6 +161,12 @@ class MPK_CPT {
 			'query_var'         => false,
 			'rewrite'           => false,
 			'show_in_rest'      => true,
+			'capabilities'      => array(
+				'manage_terms' => 'manage_options',
+				'edit_terms'   => 'manage_options',
+				'delete_terms' => 'manage_options',
+				'assign_terms' => 'manage_options',
+			),
 		);
 		register_taxonomy( 'mpk_destination', array( 'mpk_hotel' ), $dest_args );
 	}

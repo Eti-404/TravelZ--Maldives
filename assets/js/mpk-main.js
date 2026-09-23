@@ -708,6 +708,17 @@
 		var minusBtns = document.querySelectorAll('.mpk-btn-qty-minus');
 		var plusBtns = document.querySelectorAll('.mpk-btn-qty-plus');
 
+		// Occupancy limits per room (from server; infants not counted as guests)
+		var occ = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.occupancy) ? window.MPK_INITIAL_DATA.occupancy : {};
+		var MAX_ADULTS = parseInt(occ.max_adults, 10) || 3;
+		var MAX_GUESTS = parseInt(occ.max_guests, 10) || 4;
+		var MAX_INFANTS = (occ.max_infants !== undefined) ? (parseInt(occ.max_infants, 10) || 0) : 2;
+		var MAX_ROOMS = 10;
+
+		function fitsRooms(a, c, i, r) {
+			return r >= 1 && r <= a && a <= MAX_ADULTS * r && (a + c) <= MAX_GUESTS * r && i <= MAX_INFANTS * r;
+		}
+
 		function updateCounters() {
 			var adultsEl = document.getElementById('mpk-val-adults');
 			var childrenEl = document.getElementById('mpk-val-children');
@@ -724,20 +735,37 @@
 			for (var m = 0; m < minusBtns.length; m++) {
 				var btn = minusBtns[m];
 				var tgt = btn.getAttribute('data-target');
-				if (tgt === 'adults') btn.disabled = state.adults <= 1;
+				if (tgt === 'adults') btn.disabled = state.adults <= 1 || !fitsRooms(state.adults - 1, state.children, state.infants, Math.min(state.rooms, state.adults - 1));
 				if (tgt === 'children') btn.disabled = state.children <= 0;
 				if (tgt === 'infants') btn.disabled = state.infants <= 0;
-				if (tgt === 'rooms') btn.disabled = state.rooms <= 1;
+				if (tgt === 'rooms') btn.disabled = state.rooms <= 1 || !fitsRooms(state.adults, state.children, state.infants, state.rooms - 1);
+			}
+
+			var a = state.adults, c = state.children, i = state.infants, r = state.rooms;
+			for (var pl = 0; pl < plusBtns.length; pl++) {
+				var pb = plusBtns[pl];
+				var pt = pb.getAttribute('data-target');
+				if (pt === 'adults') pb.disabled = a >= 20 || !fitsRooms(a + 1, c, i, r);
+				if (pt === 'children') pb.disabled = c >= 20 || !fitsRooms(a, c + 1, i, r);
+				if (pt === 'infants') pb.disabled = i >= 10 || !fitsRooms(a, c, i + 1, r);
+				if (pt === 'rooms') pb.disabled = r >= MAX_ROOMS || !fitsRooms(a, c, i, r + 1);
+			}
+
+			var occHint = document.getElementById('mpk-occupancy-hint');
+			if (occHint) {
+				occHint.textContent = 'Max ' + MAX_ADULTS + ' adults / ' + MAX_GUESTS + ' guests (excl. infants) per room. Add a room for more guests.';
 			}
 		}
 
 		for (var p = 0; p < plusBtns.length; p++) {
 			plusBtns[p].addEventListener('click', function () {
 				var tgt = this.getAttribute('data-target');
-				if (tgt === 'adults') state.adults++;
-				if (tgt === 'children') state.children++;
-				if (tgt === 'infants') state.infants++;
-				if (tgt === 'rooms') state.rooms++;
+				var na = state.adults + (tgt === 'adults' ? 1 : 0);
+				var nc = state.children + (tgt === 'children' ? 1 : 0);
+				var ni = state.infants + (tgt === 'infants' ? 1 : 0);
+				var nr = state.rooms + (tgt === 'rooms' ? 1 : 0);
+				if (!tgt || !fitsRooms(na, nc, ni, nr)) return;
+				state.adults = na; state.children = nc; state.infants = ni; state.rooms = nr;
 				updateCounters();
 				if (state.step === 3) renderReview();
 			});
@@ -746,10 +774,17 @@
 		for (var m = 0; m < minusBtns.length; m++) {
 			minusBtns[m].addEventListener('click', function () {
 				var tgt = this.getAttribute('data-target');
-				if (tgt === 'adults' && state.adults > 1) state.adults--;
+				if (!tgt) return;
+				// Reducing adults below rooms also reduces rooms (each room needs an adult)
+				if (tgt === 'adults' && state.adults > 1) {
+					var la = state.adults - 1, lr = Math.min(state.rooms, la);
+					if (!fitsRooms(la, state.children, state.infants, lr)) return;
+					state.adults = la;
+					state.rooms = lr;
+				}
 				if (tgt === 'children' && state.children > 0) state.children--;
 				if (tgt === 'infants' && state.infants > 0) state.infants--;
-				if (tgt === 'rooms' && state.rooms > 1) state.rooms--;
+				if (tgt === 'rooms' && state.rooms > 1 && fitsRooms(state.adults, state.children, state.infants, state.rooms - 1)) state.rooms--;
 				updateCounters();
 				if (state.step === 3) renderReview();
 			});
