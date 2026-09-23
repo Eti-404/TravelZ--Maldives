@@ -104,12 +104,14 @@ class MPK_Plugin {
 		require_once MPK_PLUGIN_DIR . 'frontend/class-mpk-frontend.php';
 		new MPK_Frontend();
 
-		// Initialize admin dashboard controller and settings.
+		// Initialize admin dashboard controller, hotel meta boxes, and settings.
 		if ( is_admin() ) {
 			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-settings.php';
 			MPK_Settings::get_instance();
 			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-admin.php';
 			new MPK_Admin();
+			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-hotel-meta-box.php';
+			new MPK_Hotel_Meta_Box();
 		}
 	}
 

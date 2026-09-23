@@ -23,7 +23,27 @@ class MPK_CPT {
 	public function __construct() {
 		add_action( 'init', array( $this, 'register_post_types' ), 5 );
 		add_action( 'init', array( $this, 'register_taxonomies' ), 5 );
+		add_action( 'after_setup_theme', array( $this, 'ensure_thumbnail_support' ), 20 );
+		add_action( 'init', array( $this, 'ensure_thumbnail_support' ), 20 );
 		// Note: Admin menus are centralized under Maldives Packages in MPK_Admin::register_unified_admin_menu()
+	}
+
+	/**
+	 * Guarantee post thumbnail (featured image) support is active for mpk_hotel.
+	 */
+	public function ensure_thumbnail_support() {
+		if ( ! current_theme_supports( 'post-thumbnails' ) ) {
+			add_theme_support( 'post-thumbnails' );
+		} else {
+			$thumb_support = get_theme_support( 'post-thumbnails' );
+			if ( is_array( $thumb_support ) && isset( $thumb_support[0] ) && is_array( $thumb_support[0] ) ) {
+				if ( ! in_array( 'mpk_hotel', $thumb_support[0], true ) ) {
+					$thumb_support[0][] = 'mpk_hotel';
+					add_theme_support( 'post-thumbnails', $thumb_support[0] );
+				}
+			}
+		}
+		add_post_type_support( 'mpk_hotel', 'thumbnail' );
 	}
 
 	/**
@@ -63,6 +83,7 @@ class MPK_CPT {
 			'show_in_rest'       => true,
 		);
 		register_post_type( 'mpk_hotel', $hotel_args );
+		add_post_type_support( 'mpk_hotel', 'thumbnail' );
 
 		// 2. mpk_booking (Bookings)
 		$booking_labels = array(
