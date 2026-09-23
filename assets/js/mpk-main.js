@@ -1657,7 +1657,7 @@
 		formData.append('lead_email', (state.form && state.form.email) ? state.form.email.trim() : '');
 		formData.append('lead_phone', (state.form && state.form.mobile) ? state.form.mobile.trim() : '');
 		formData.append('lead_country', (state.form && state.form.country) ? state.form.country.trim() : '');
-		formData.append('passport_no', (state.form && state.form.passport) ? state.form.passport.trim() : ((state.form && state.form.fileName) ? state.form.fileName : ''));
+		formData.append('passport_no', (state.form && state.form.passport) ? state.form.passport.trim() : '');
 		var domFileInput = document.getElementById('mpk-passport-file');
 		var passportFileToUpload = state.passportFile || (domFileInput && domFileInput.files && domFileInput.files[0] ? domFileInput.files[0] : null);
 		if (passportFileToUpload) {

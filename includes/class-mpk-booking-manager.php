@@ -21,6 +21,25 @@ class MPK_Booking_Manager {
 	const TABLE_NAME = 'mpk_bookings';
 
 	/**
+	 * Schema version. Bump whenever the CREATE TABLE definition changes.
+	 */
+	const DB_VERSION = '1.1.0';
+
+	/**
+	 * Max lengths of varchar columns (keeps inserts from failing in MySQL strict mode).
+	 */
+	const FIELD_LIMITS = array(
+		'reference_id'   => 50,
+		'lead_name'      => 150,
+		'lead_email'     => 254,
+		'lead_phone'     => 50,
+		'lead_country'   => 100,
+		'passport_no'    => 50,
+		'payment_method' => 50,
+		'status'         => 20,
+	);
+
+	/**
 	 * Get the fully prefixed table name.
 	 *
 	 * @return string
@@ -47,15 +66,16 @@ class MPK_Booking_Manager {
 			id bigint(20) NOT NULL AUTO_INCREMENT,
 			reference_id varchar(50) NOT NULL,
 			lead_name varchar(150) NOT NULL,
-			lead_email varchar(100) NOT NULL,
+			lead_email varchar(254) NOT NULL,
 			lead_phone varchar(50) DEFAULT '' NOT NULL,
 			lead_country varchar(100) DEFAULT '' NOT NULL,
 			passport_no varchar(50) DEFAULT '' NOT NULL,
-			passport_file_url varchar(255) DEFAULT '' NOT NULL,
+			passport_file_url varchar(500) DEFAULT '' NOT NULL,
 			special_requests text,
-			selected_location varchar(100) DEFAULT '' NOT NULL,
-			hotel_name varchar(150) DEFAULT '' NOT NULL,
-			room_name varchar(150) DEFAULT '' NOT NULL,
+			selected_location text,
+			hotel_name text,
+			room_name text,
+			booking_items longtext,
 			check_in date DEFAULT NULL,
 			check_out date DEFAULT NULL,
 			adults int(11) DEFAULT 1 NOT NULL,
@@ -76,8 +96,38 @@ class MPK_Booking_Manager {
 		// Self-heal: ensure passport_file_url column exists in previously created tables
 		$col_exists = $wpdb->get_results( "SHOW COLUMNS FROM {$table_name} LIKE 'passport_file_url'" );
 		if ( empty( $col_exists ) ) {
-			$wpdb->query( "ALTER TABLE {$table_name} ADD COLUMN passport_file_url varchar(255) DEFAULT '' NOT NULL AFTER passport_no" );
+			$wpdb->query( "ALTER TABLE {$table_name} ADD COLUMN passport_file_url varchar(500) DEFAULT '' NOT NULL AFTER passport_no" );
 		}
+
+		update_option( 'mpk_db_version', self::DB_VERSION );
+	}
+
+	/**
+	 * Run create_table() only when the stored schema version is outdated
+	 * (avoids dbDelta + SHOW COLUMNS on every request).
+	 *
+	 * @return void
+	 */
+	public static function maybe_upgrade() {
+		if ( self::DB_VERSION !== get_option( 'mpk_db_version' ) ) {
+			self::create_table();
+		}
+	}
+
+	/**
+	 * Trim a string to a column's max length (multibyte safe).
+	 *
+	 * @param string $field Column name.
+	 * @param string $value Value.
+	 * @return string
+	 */
+	private static function fit( $field, $value ) {
+		$value = (string) $value;
+		if ( ! isset( self::FIELD_LIMITS[ $field ] ) ) {
+			return $value;
+		}
+		$max = self::FIELD_LIMITS[ $field ];
+		return function_exists( 'mb_substr' ) ? mb_substr( $value, 0, $max ) : substr( $value, 0, $max );
 	}
 
 	/**
@@ -150,7 +200,15 @@ class MPK_Booking_Manager {
 			'payment_method'    => isset( $data['payment_method'] ) ? sanitize_text_field( $data['payment_method'] ) : 'office',
 			'status'            => ! empty( $data['status'] ) ? sanitize_text_field( $data['status'] ) : 'Pending',
 			'created_at'        => current_time( 'mysql' ),
+			'booking_items'     => ! empty( $data['booking_items'] ) && is_array( $data['booking_items'] ) ? wp_json_encode( $data['booking_items'] ) : '',
 		);
+
+		// Keep varchar fields within column limits so strict-mode inserts never fail.
+		foreach ( self::FIELD_LIMITS as $field => $max ) {
+			if ( isset( $insert_data[ $field ] ) && is_string( $insert_data[ $field ] ) ) {
+				$insert_data[ $field ] = self::fit( $field, $insert_data[ $field ] );
+			}
+		}
 
 		$formats = array(
 			'%s', // reference_id
@@ -174,6 +232,7 @@ class MPK_Booking_Manager {
 			'%s', // payment_method
 			'%s', // status
 			'%s', // created_at
+			'%s', // booking_items
 		);
 
 		$result = $wpdb->insert( $table_name, $insert_data, $formats );

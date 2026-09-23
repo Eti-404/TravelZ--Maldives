@@ -359,6 +359,7 @@ class MPK_Ajax_Handler {
 			'grand_total'       => $grand_total,
 			'payment_method'    => $payment_method,
 			'status'            => 'Pending',
+			'booking_items'     => $trip['items'],
 		);
 
 		// 6. Save booking using Booking Manager
@@ -421,6 +422,7 @@ class MPK_Ajax_Handler {
 		$loc_names   = array();
 		$min_in      = '';
 		$max_out     = '';
+		$items       = array();
 
 		foreach ( $selections as $sel ) {
 			if ( ! is_array( $sel ) ) {
@@ -474,6 +476,18 @@ class MPK_Ajax_Handler {
 				$loc_names[] = $loc_name;
 			}
 
+			$items[] = array(
+				'hotel_id'  => (string) $hotel['id'],
+				'hotel'     => $hotel['name'],
+				'room_id'   => (string) $room['id'],
+				'room'      => $room['name'],
+				'location'  => $loc_name,
+				'check_in'  => $in,
+				'check_out' => $out,
+				'nights'    => $nights,
+				'price'     => $price,
+			);
+
 			if ( ! $min_in || $in < $min_in ) {
 				$min_in = $in;
 			}
@@ -507,6 +521,7 @@ class MPK_Ajax_Handler {
 			'check_in'          => $min_in,
 			'check_out'         => $max_out,
 			'grand_total'       => round( $total, 2 ),
+			'items'             => $items,
 		);
 	}
 

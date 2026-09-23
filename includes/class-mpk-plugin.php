@@ -127,7 +127,7 @@ class MPK_Plugin {
 			MPK_Seeder::seed();
 		}
 
-		// Self-heal: ensure custom bookings table exists.
-		MPK_Booking_Manager::create_table();
+		// Self-heal: create / upgrade bookings table only when schema version changes.
+		MPK_Booking_Manager::maybe_upgrade();
 	}
 }
