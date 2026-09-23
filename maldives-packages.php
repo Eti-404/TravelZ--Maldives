@@ -3,7 +3,7 @@
  * Plugin Name:       Maldives Packages Booking
  * Plugin URI:        https://travelz.local/maldives-packages
  * Description:       Luxury Maldives package booking flow for multi-destination island escapes, hotel selection, real-time pricing, and concierge booking inquiries.
- * Version:           1.1.6
+ * Version:           1.1.7
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Travel Z Team
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin Constants Definition.
  * Approved Project Prefix: MPK / mpk_
  */
-define( 'MPK_VERSION', '1.1.6' );
+define( 'MPK_VERSION', '1.1.7' );
 define( 'MPK_PLUGIN_FILE', __FILE__ );
 define( 'MPK_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MPK_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

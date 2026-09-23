@@ -387,15 +387,7 @@ class MPK_Ajax_Handler {
 			);
 		}
 
-		// 1.1 Honeypot: hidden field that real users (and browser autofill) never fill
-		if ( ! empty( $_POST['mpk_hp_check'] ) ) {
-			wp_send_json_error(
-				array( 'message' => __( 'Your booking was flagged as automated and could not be submitted. Please refresh the page and try again.', 'maldives-packages' ) ),
-				400
-			);
-		}
-
-		// 1.2 Rate limit per IP (default: 10 successful bookings / 15 minutes)
+		// 1.1 Rate limit per IP (default: 10 successful bookings / 15 minutes)
 		$retry_after = self::check_rate_limit();
 		if ( $retry_after > 0 ) {
 			$c       = self::rate_limit_config();

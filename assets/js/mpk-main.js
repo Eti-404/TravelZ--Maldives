@@ -1934,8 +1934,6 @@
 		}
 		formData.append('special_requests', (state.form && state.form.request) ? state.form.request.trim() : '');
 		formData.append('payment_method', state.paymentMethod || '');
-		var hpField = document.getElementById('mpk-hp-field');
-		formData.append('mpk_hp_check', hpField ? hpField.value : '');
 
 		// Aggregate locations
 		var locNames = [];

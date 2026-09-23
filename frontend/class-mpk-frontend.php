@@ -608,12 +608,6 @@ class MPK_Frontend {
 									<input type="text" id="mpk-lead-passport" class="mpk-input" placeholder="A12345678" value="" />
 								</div>
 
-								<!-- Anti-spam honeypot: hidden from humans, bots tend to fill it -->
-								<div aria-hidden="true" style="position:absolute !important; left:-10000px !important; top:auto; width:1px; height:1px; overflow:hidden;">
-									<label for="mpk-hp-field">Leave this field empty</label>
-									<input type="text" id="mpk-hp-field" name="mpk_hp_check" value="" tabindex="-1" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" />
-								</div>
-
 								<div class="mpk-form-field">
 									<label class="mpk-label">
 										<?php echo self::get_icon( 'upload', 14, 14 ); ?> Passport Attachment
