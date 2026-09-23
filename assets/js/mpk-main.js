@@ -1563,7 +1563,8 @@
 		if (emailEl) emailEl.textContent = state.form.email || 'your email';
 
 		var pricing = calcPricing();
-		if (amountEl) amountEl.textContent = '$' + pricing.total.toFixed(2);
+		var confirmedTotal = (typeof state.serverTotal === 'number') ? state.serverTotal : pricing.total;
+		if (amountEl) amountEl.textContent = '$' + confirmedTotal.toFixed(2);
 
 		if (instructionsEl) {
 			var instHtml = '';
@@ -1712,6 +1713,19 @@
 		formData.append('infants', state.infants || 0);
 		formData.append('rooms_count', state.rooms || 1);
 
+		// Raw selections: server re-validates rooms/dates and recalculates the price
+		var selPayload = [];
+		for (var sp = 0; sp < state.selections.length; sp++) {
+			selPayload.push({
+				hotel_id: state.selections[sp].hotelId,
+				room_id: state.selections[sp].roomId,
+				location: state.selections[sp].location,
+				check_in: state.selections[sp].checkIn || '',
+				check_out: state.selections[sp].checkOut || ''
+			});
+		}
+		formData.append('selections', JSON.stringify(selPayload));
+
 		var pricing = calcPricing();
 		formData.append('grand_total', pricing.total ? pricing.total.toFixed(2) : '0.00');
 
@@ -1728,6 +1742,7 @@
 			isSubmitting = false;
 			if (result && result.success && result.data && result.data.reference_id) {
 				state.confirmationCode = result.data.reference_id;
+				state.serverTotal = (typeof result.data.grand_total === 'number') ? result.data.grand_total : null;
 				setStep(5);
 			} else {
 				var errMsg = (result && result.data && result.data.message) ? result.data.message : 'Booking submission failed. Please try again.';

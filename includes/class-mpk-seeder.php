@@ -50,44 +50,65 @@ class MPK_Seeder {
 
 	/**
 	 * Seed Options Store.
+	 *
+	 * add_option() only writes when the option does not exist yet, so admin-saved
+	 * settings, locations and hotels are never overwritten on re-seed / version bump.
 	 */
 	public static function seed_options() {
-		update_option( 'mpk_locations', self::get_default_locations() );
-		update_option( 'mpk_hotels', self::get_default_hotels() );
-		update_option( 'mpk_settings', self::get_default_settings() );
+		add_option( 'mpk_locations', self::get_default_locations() );
+		add_option( 'mpk_hotels', self::get_default_hotels() );
+		add_option( 'mpk_settings', self::get_default_settings() );
 	}
 
 	/**
 	 * Seed Taxonomy Terms (Destinations).
+	 *
+	 * Each default term is created only once; terms the admin deleted are not recreated.
 	 */
 	public static function seed_taxonomies() {
+		$seeded    = (array) get_option( 'mpk_seeded_location_ids', array() );
 		$locations = self::get_default_locations();
+
 		foreach ( $locations as $loc ) {
-			$term = term_exists( $loc['id'], 'mpk_destination' );
-			if ( ! $term ) {
-				wp_insert_term(
-					$loc['name'],
-					'mpk_destination',
-					array(
-						'slug'        => $loc['id'],
-						'description' => $loc['tagline'],
-					)
-				);
+			if ( term_exists( $loc['id'], 'mpk_destination' ) ) {
+				$seeded[] = $loc['id'];
+				continue;
+			}
+			if ( in_array( $loc['id'], $seeded, true ) ) {
+				continue; // Seeded before, then removed by admin.
+			}
+
+			$result = wp_insert_term(
+				$loc['name'],
+				'mpk_destination',
+				array(
+					'slug'        => $loc['id'],
+					'description' => $loc['tagline'],
+				)
+			);
+			if ( ! is_wp_error( $result ) ) {
+				$seeded[] = $loc['id'];
 			}
 		}
+
+		update_option( 'mpk_seeded_location_ids', array_values( array_unique( $seeded ) ), false );
 	}
 
 	/**
 	 * Seed Hotels Custom Post Type.
+	 *
+	 * Default hotels are inserted only once. Existing hotels (including trashed or
+	 * admin-edited ones) are left untouched, and hotels the admin deleted are not recreated.
 	 */
 	public static function seed_hotels_cpt() {
+		$seeded = (array) get_option( 'mpk_seeded_hotel_ids', array() );
 		$hotels = self::get_default_hotels();
+
 		foreach ( $hotels as $h ) {
-			// Query existing post by unique meta _mpk_hotel_id
 			$existing = get_posts(
 				array(
 					'post_type'   => 'mpk_hotel',
-					'post_status' => 'any',
+					'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private', 'trash' ),
 					'numberposts' => 1,
 					'meta_key'    => '_mpk_hotel_id',
 					'meta_value'  => $h['id'],
@@ -95,29 +116,29 @@ class MPK_Seeder {
 				)
 			);
 
-			$menu_order = isset( $h['menu_order'] ) ? (int) $h['menu_order'] : 0;
-
-			$post_data = array(
-				'post_title'   => $h['name'],
-				'post_name'    => $h['id'],
-				'post_status'  => 'publish',
-				'post_type'    => 'mpk_hotel',
-				'menu_order'   => $menu_order,
-			);
-
 			if ( ! empty( $existing ) ) {
-				$post_id = $existing[0];
-				$post_data['ID'] = $post_id;
-				wp_update_post( $post_data );
-			} else {
-				$post_id = wp_insert_post( $post_data );
+				$seeded[] = $h['id']; // Already exists - never overwrite admin edits.
+				continue;
+			}
+			if ( in_array( $h['id'], $seeded, true ) ) {
+				continue; // Seeded before, then permanently deleted by admin.
 			}
 
+			$menu_order = isset( $h['menu_order'] ) ? (int) $h['menu_order'] : 0;
+
+			$post_id = wp_insert_post(
+				array(
+					'post_title'  => $h['name'],
+					'post_name'   => $h['id'],
+					'post_status' => 'publish',
+					'post_type'   => 'mpk_hotel',
+					'menu_order'  => $menu_order,
+				)
+			);
+
 			if ( $post_id && ! is_wp_error( $post_id ) ) {
-				// Assign taxonomy
 				wp_set_object_terms( $post_id, $h['location'], 'mpk_destination' );
 
-				// Update metadata
 				update_post_meta( $post_id, '_mpk_hotel_id', $h['id'] );
 				update_post_meta( $post_id, '_mpk_menu_order', $menu_order );
 				update_post_meta( $post_id, '_mpk_location', $h['location'] );
@@ -129,8 +150,12 @@ class MPK_Seeder {
 				update_post_meta( $post_id, '_mpk_amenities', $h['amenities'] );
 				update_post_meta( $post_id, '_mpk_hotel_rooms', $h['rooms'] );
 				update_post_meta( $post_id, '_mpk_rooms', $h['rooms'] );
+
+				$seeded[] = $h['id'];
 			}
 		}
+
+		update_option( 'mpk_seeded_hotel_ids', array_values( array_unique( $seeded ) ), false );
 	}
 
 	/**

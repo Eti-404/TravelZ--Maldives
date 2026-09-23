@@ -507,7 +507,7 @@ class MPK_Admin {
 									'lead_phone'        => $b->lead_phone,
 									'lead_country'      => $b->lead_country,
 									'passport_no'       => $b->passport_no,
-									'passport_file_url' => ! empty( $b->passport_file_url ) ? $b->passport_file_url : '',
+									'passport_file_url' => ! empty( $b->passport_file_url ) ? MPK_Ajax_Handler::get_passport_view_url( $b->id ) : '',
 									'special_requests'  => $b->special_requests,
 									'selected_location' => $b->selected_location,
 									'hotel_name'        => $b->hotel_name,
@@ -552,7 +552,7 @@ class MPK_Admin {
 										<?php endif; ?>
 										<?php if ( ! empty( $b->passport_file_url ) ) : ?>
 											<div class="mpk-cell-sub" style="margin-top: 4px;">
-												<a href="<?php echo esc_url( $b->passport_file_url ); ?>" target="_blank" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#0284c7; text-decoration:none;" title="<?php esc_attr_e( 'View Attached Passport', 'maldives-packages' ); ?>">
+												<a href="<?php echo esc_url( MPK_Ajax_Handler::get_passport_view_url( $b->id ) ); ?>" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#0284c7; text-decoration:none;" title="<?php esc_attr_e( 'View Attached Passport', 'maldives-packages' ); ?>">
 													<span class="dashicons dashicons-paperclip" style="font-size:13px; width:13px; height:13px;"></span> <?php esc_html_e( 'Passport Copy', 'maldives-packages' ); ?>
 												</a>
 											</div>
@@ -685,7 +685,7 @@ class MPK_Admin {
 							<div class="mpk-modal-info-item" id="mpk-modal-passport-wrap" style="grid-column: 1 / -1; display: none; margin-top: 6px; padding-top: 10px; border-top: 1px dashed #e2e8f0;">
 								<span class="mpk-modal-label">Passport Attachment Document</span>
 								<div style="margin-top: 6px;">
-									<a href="#" id="mpk-modal-passport-link" target="_blank" class="button button-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #0284c7;">
+									<a href="#" id="mpk-modal-passport-link" target="_blank" rel="noopener noreferrer" class="button button-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #0284c7;">
 										<span class="dashicons dashicons-media-document"></span> <?php esc_html_e( 'View / Download Passport Copy', 'maldives-packages' ); ?> &rarr;
 									</a>
 								</div>
