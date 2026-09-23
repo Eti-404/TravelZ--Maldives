@@ -240,7 +240,7 @@ class MPK_Frontend {
 				</div>
 
 				<!-- MAIN CARD CONTENT -->
-				<main class="mpk-main-card">
+				<main class="mpk-wizard-card mpk-main-card">
 
 					<!-- STEP 1: PACKAGE INFO -->
 					<section class="mpk-step-pane active" id="mpk-pane-1" data-step="1">
@@ -372,119 +372,144 @@ class MPK_Frontend {
 								</div>
 
 								<!-- Star Rating with Circular Radio-Dot Controls -->
-								<div class="mpk-filter-accordion-item">
-									<div class="mpk-filter-title">Star Rating</div>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_stars" value="3" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">3 Star</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_stars" value="4" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">4 Star</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_stars" value="5" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">5 Star</span>
-									</label>
+								<div class="mpk-filter-accordion-item" data-filter="stars">
+									<div class="mpk-filter-title">
+										<span>Star Rating</span>
+										<?php echo self::get_icon( 'chevron-down', 16, 16 ); ?>
+									</div>
+									<div class="mpk-filter-accordion-content">
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_stars" value="3" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">3 Star</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_stars" value="4" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">4 Star</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_stars" value="5" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">5 Star</span>
+										</label>
+									</div>
 								</div>
 
 								<!-- Meals with Circular Radio-Dot Controls -->
-								<div class="mpk-filter-accordion-item">
-									<div class="mpk-filter-title">Meals</div>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_meals" value="Breakfast" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Breakfast</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_meals" value="Breakfast & Dinner" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Breakfast &amp; Dinner</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_meals" value="Breakfast Lunch & Dinner" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Breakfast Lunch &amp; Dinner</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_meals" value="All Inclusive" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">All Inclusive</span>
-									</label>
+								<div class="mpk-filter-accordion-item" data-filter="meals">
+									<div class="mpk-filter-title">
+										<span>Meals</span>
+										<?php echo self::get_icon( 'chevron-down', 16, 16 ); ?>
+									</div>
+									<div class="mpk-filter-accordion-content">
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_meals" value="Breakfast" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Breakfast</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_meals" value="Breakfast & Dinner" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Breakfast &amp; Dinner</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_meals" value="Breakfast Lunch & Dinner" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Breakfast Lunch &amp; Dinner</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_meals" value="All Inclusive" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">All Inclusive</span>
+										</label>
+									</div>
 								</div>
 
 								<!-- Bed Type with Circular Radio-Dot Controls -->
-								<div class="mpk-filter-accordion-item">
-									<div class="mpk-filter-title">Bed Type</div>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_beds" value="Single" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Single</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_beds" value="Double" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Double</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_beds" value="Twin" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Twin</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_beds" value="Triple" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Triple</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_beds" value="King" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">King</span>
-									</label>
+								<div class="mpk-filter-accordion-item" data-filter="beds">
+									<div class="mpk-filter-title">
+										<span>Bed Type</span>
+										<?php echo self::get_icon( 'chevron-down', 16, 16 ); ?>
+									</div>
+									<div class="mpk-filter-accordion-content">
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_beds" value="Single" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Single</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_beds" value="Double" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Double</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_beds" value="Twin" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Twin</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_beds" value="Triple" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Triple</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_beds" value="King" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">King</span>
+										</label>
+									</div>
 								</div>
 
 								<!-- Room Type with Circular Radio-Dot Controls -->
-								<div class="mpk-filter-accordion-item">
-									<div class="mpk-filter-title">Room Type</div>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_rooms" value="Balcony" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Balcony</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_rooms" value="Sea View" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Sea View</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_rooms" value="Island View" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Island View</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_rooms" value="With Pool" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">With Pool</span>
-									</label>
-									<label class="mpk-filter-item mpk-filter-radio-item">
-										<input type="checkbox" name="mpk_rooms" value="Water Villa" />
-										<span class="mpk-radio-dot"></span>
-										<span class="mpk-filter-label">Water Villa</span>
-									</label>
+								<div class="mpk-filter-accordion-item" data-filter="rooms">
+									<div class="mpk-filter-title">
+										<span>Room Type</span>
+										<?php echo self::get_icon( 'chevron-down', 16, 16 ); ?>
+									</div>
+									<div class="mpk-filter-accordion-content">
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_rooms" value="Balcony" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Balcony</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_rooms" value="Sea View" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Sea View</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_rooms" value="Island View" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Island View</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_rooms" value="With Pool" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">With Pool</span>
+										</label>
+										<label class="mpk-filter-item mpk-filter-radio-item">
+											<input type="checkbox" name="mpk_rooms" value="Water Villa" />
+											<span class="mpk-radio-dot"></span>
+											<span class="mpk-filter-label">Water Villa</span>
+										</label>
+									</div>
 								</div>
 
 								<!-- Price Range -->
-								<div class="mpk-filter-accordion-item">
-									<div class="mpk-filter-title">Price Range</div>
-									<div class="mpk-price-slider-wrap">
-										<input type="range" id="mpk-price-range" class="mpk-price-slider" min="50" max="1000" step="10" value="1000" />
-										<div class="mpk-price-range-label">
-											<span class="mpk-price-pill">$50</span>
-											<span style="color: var(--mpk-text-muted);">per night</span>
-											<span class="mpk-price-pill" id="mpk-price-max-label">$1000</span>
+								<div class="mpk-filter-accordion-item" data-filter="price">
+									<div class="mpk-filter-title">
+										<span>Price Range</span>
+										<?php echo self::get_icon( 'chevron-down', 16, 16 ); ?>
+									</div>
+									<div class="mpk-filter-accordion-content">
+										<div class="mpk-price-slider-wrap">
+											<input type="range" id="mpk-price-range" class="mpk-price-slider" min="50" max="1000" step="10" value="1000" />
+											<div class="mpk-price-range-label">
+												<span class="mpk-price-pill">$50</span>
+												<span style="color: var(--mpk-text-muted);">per night</span>
+												<span class="mpk-price-pill" id="mpk-price-max-label">$1000</span>
+											</div>
 										</div>
 									</div>
 								</div>
@@ -774,14 +799,18 @@ class MPK_Frontend {
 						</div>
 					</section>
 
-					<!-- BOTTOM STEP NAVIGATION -->
-					<div class="mpk-step-nav">
-						<button type="button" class="mpk-btn mpk-btn-outline mpk-btn-back" style="display: none;">
-							<?php echo self::get_icon( 'arrow-left', 16, 16 ); ?> Back
-						</button>
-						<div style="flex: 1;"></div>
-						<div style="display: flex; align-items: center; gap: 12px;">
+					<!-- BOTTOM STEP NAVIGATION (FLOATING FOOTER BAR) -->
+					<div class="mpk-step-nav" id="mpk-step-nav">
+						<div class="mpk-step-nav-left">
+							<button type="button" class="mpk-btn mpk-btn-outline mpk-btn-back" style="visibility: hidden;">
+								<?php echo self::get_icon( 'arrow-left', 16, 16 ); ?>
+								<span>Back</span>
+							</button>
+						</div>
+						<div class="mpk-step-nav-center">
 							<span class="mpk-validation-hint" id="mpk-validation-hint">Select at least one location</span>
+						</div>
+						<div class="mpk-step-nav-right">
 							<button type="button" class="mpk-btn mpk-btn-primary mpk-btn-next" disabled>
 								<span id="mpk-btn-next-label">Continue</span>
 								<?php echo self::get_icon( 'arrow-right', 16, 16 ); ?>

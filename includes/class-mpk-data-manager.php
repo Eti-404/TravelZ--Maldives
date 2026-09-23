@@ -284,10 +284,13 @@ class MPK_Data_Manager {
 				}
 				$rooms = $normalized_rooms;
 
+				$menu_order = isset( $p->menu_order ) && $p->menu_order > 0 ? (int) $p->menu_order : (int) get_post_meta( $post_id, '_mpk_menu_order', true );
+
 				$hotels[] = array(
 					'id'          => $hotel_id,
 					'name'        => $p->post_title,
 					'location'    => $loc_slug,
+					'menu_order'  => $menu_order,
 					'stars'       => $stars,
 					'review'      => $review,
 					'reviewLabel' => $review_label,
@@ -303,6 +306,16 @@ class MPK_Data_Manager {
 		if ( empty( $hotels ) ) {
 			$hotels = MPK_Seeder::get_default_hotels();
 		}
+
+		// Sort hotels by menu_order ASC, then fallback to title
+		usort( $hotels, function( $a, $b ) {
+			$order_a = isset( $a['menu_order'] ) && $a['menu_order'] > 0 ? (int) $a['menu_order'] : 99;
+			$order_b = isset( $b['menu_order'] ) && $b['menu_order'] > 0 ? (int) $b['menu_order'] : 99;
+			if ( $order_a === $order_b ) {
+				return strcmp( $a['name'], $b['name'] );
+			}
+			return $order_a - $order_b;
+		} );
 
 		if ( $location_id ) {
 			$filtered = array();
