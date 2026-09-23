@@ -457,12 +457,12 @@ class MPK_Admin {
 
 			<!-- Bookings List Table -->
 			<div class="mpk-table-card">
-				<table class="wp-list-table widefat fixed striped mpk-bookings-table">
+				<table class="wp-list-table widefat striped mpk-bookings-table">
 					<thead>
 						<tr>
 							<th style="width: 140px;"><?php esc_html_e( 'Ref Code / Date', 'maldives-packages' ); ?></th>
 							<th style="width: 180px;"><?php esc_html_e( 'Guest Details', 'maldives-packages' ); ?></th>
-							<th><?php esc_html_e( 'Resort & Room', 'maldives-packages' ); ?></th>
+							<th class="mpk-th-resort" style="min-width: 220px;"><?php esc_html_e( 'Resort & Room', 'maldives-packages' ); ?></th>
 							<th style="width: 170px;"><?php esc_html_e( 'Travel Dates', 'maldives-packages' ); ?></th>
 							<th style="width: 130px;"><?php esc_html_e( 'Guests & Rooms', 'maldives-packages' ); ?></th>
 							<th style="width: 140px;"><?php esc_html_e( 'Amount & Payment', 'maldives-packages' ); ?></th>
@@ -560,7 +560,7 @@ class MPK_Admin {
 									</td>
 
 									<!-- Resort & Room -->
-									<td>
+									<td class="mpk-resort-col">
 										<div class="mpk-resort-title"><?php echo esc_html( $b->hotel_name ?: '—' ); ?></div>
 										<div class="mpk-cell-sub">
 											<?php echo esc_html( $b->room_name ?: 'Standard Room' ); ?>
@@ -747,9 +747,13 @@ class MPK_Admin {
 
 		<!-- Scoped Admin Stylesheet & Javascript -->
 		<style>
-			.mpk-admin-wrap {
-				max-width: 1300px;
-				margin: 20px 20px 40px 0;
+			.wrap.mpk-admin-wrap,
+			.mpk-admin-wrap,
+			.mpk-dashboard-container {
+				max-width: 100% !important;
+				width: calc(100% - 20px) !important;
+				margin: 20px 20px 40px 0 !important;
+				box-sizing: border-box;
 				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 			}
 			.mpk-admin-header {
@@ -762,6 +766,8 @@ class MPK_Admin {
 				border-radius: 12px;
 				box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 				border: 1px solid #e2e8f0;
+				width: 100%;
+				box-sizing: border-box;
 			}
 			.mpk-header-left {
 				display: flex;
@@ -813,9 +819,15 @@ class MPK_Admin {
 			}
 			.mpk-stats-grid {
 				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 				gap: 16px;
 				margin-bottom: 24px;
+				width: 100%;
+			}
+			@media (min-width: 1200px) {
+				.mpk-stats-grid {
+					grid-template-columns: repeat(5, 1fr);
+				}
 			}
 			.mpk-stat-card {
 				background: #ffffff;
@@ -869,6 +881,7 @@ class MPK_Admin {
 				flex-wrap: wrap;
 				gap: 12px;
 				margin-bottom: 14px;
+				width: 100%;
 			}
 			.mpk-status-tabs {
 				margin: 0;
@@ -893,12 +906,22 @@ class MPK_Admin {
 				background: #ffffff;
 				border: 1px solid #e2e8f0;
 				border-radius: 12px;
-				overflow: hidden;
+				overflow-x: auto;
 				box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+				width: 100%;
 			}
-			.mpk-bookings-table {
+			.mpk-bookings-table,
+			table.wp-list-table.mpk-bookings-table {
+				width: 100% !important;
+				table-layout: auto !important;
 				border: none;
 				border-collapse: collapse;
+			}
+			.mpk-bookings-table td:nth-child(3),
+			.mpk-bookings-table th:nth-child(3),
+			.mpk-resort-col {
+				min-width: 220px !important;
+				white-space: normal !important;
 			}
 			.mpk-bookings-table thead th {
 				background: #f8fafc;
@@ -943,8 +966,11 @@ class MPK_Admin {
 			}
 			.mpk-resort-title {
 				font-weight: 600;
-				font-size: 13px;
+				font-size: 14px;
 				color: #1e293b;
+				white-space: normal;
+				word-break: normal;
+				line-height: 1.35;
 			}
 			.mpk-loc-tag {
 				display: inline-block;
