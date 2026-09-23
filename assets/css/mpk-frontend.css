@@ -2744,6 +2744,9 @@ main > .mpk-booking-app:first-child,
 	box-shadow: var(--mpk-shadow-soft);
 	aspect-ratio: 4 / 3;
 	transition: all 0.3s ease;
+	/* No own background: a transparent border must not reveal a dark fill (reference: bg none) */
+	background: transparent;
+	background-clip: padding-box;
 }
 
 .mpk-booking-app .mpk-location-card:hover {
