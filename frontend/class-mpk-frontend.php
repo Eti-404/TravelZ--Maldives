@@ -46,6 +46,19 @@ class MPK_Frontend {
 			true
 		);
 
+		// Note: heavy package data is localized only in render_shortcode(), not on every page.
+	}
+
+	/**
+	 * Localize package data once, only on pages that actually render the wizard.
+	 */
+	private function localize_package_data() {
+		static $done = false;
+		if ( $done ) {
+			return;
+		}
+		$done = true;
+
 		wp_localize_script(
 			'mpk-main-js',
 			'MPK_INITIAL_DATA',
@@ -138,6 +151,7 @@ class MPK_Frontend {
 		}
 
 		wp_enqueue_style( 'mpk-frontend-css' );
+		$this->localize_package_data();
 		wp_enqueue_script( 'mpk-main-js' );
 
 		$locations = MPK_Data_Manager::get_locations();

@@ -360,6 +360,10 @@ class MPK_Data_Manager {
 	 */
 	public static function get_settings() {
 		$settings = get_option( 'mpk_settings', array() );
+		if ( ! class_exists( 'MPK_Settings' ) ) {
+			// Defaults (bank / office / support details) are needed on the frontend too.
+			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-settings.php';
+		}
 		$defaults = class_exists( 'MPK_Settings' ) ? MPK_Settings::get_defaults() : array();
 		$seed_defaults = class_exists( 'MPK_Seeder' ) ? MPK_Seeder::get_default_settings() : array();
 

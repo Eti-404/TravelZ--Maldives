@@ -22,6 +22,22 @@ class MPK_Ajax_Handler {
 		add_action( 'wp_ajax_nopriv_mpk_submit_booking', array( $this, 'handle_submit_booking' ) );
 		add_action( 'wp_ajax_mpk_delete_booking', array( $this, 'handle_delete_booking' ) );
 		add_action( 'wp_ajax_mpk_view_passport', array( $this, 'handle_view_passport' ) );
+		add_action( 'wp_ajax_mpk_get_nonce', array( $this, 'handle_get_nonce' ) );
+		add_action( 'wp_ajax_nopriv_mpk_get_nonce', array( $this, 'handle_get_nonce' ) );
+	}
+
+	/**
+	 * AJAX: return a fresh booking nonce.
+	 *
+	 * Full-page caches can serve an expired nonce embedded in the HTML; the wizard
+	 * fetches a fresh one right before submitting. The nonce is bound to the current
+	 * user session, and cross-origin pages cannot read this response.
+	 */
+	public function handle_get_nonce() {
+		nocache_headers();
+		wp_send_json_success(
+			array( 'nonce' => wp_create_nonce( 'mpk_booking_nonce' ) )
+		);
 	}
 
 	/**

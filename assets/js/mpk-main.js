@@ -1582,6 +1582,8 @@
 		if (amountEl) amountEl.textContent = '$' + confirmedTotal.toFixed(2);
 
 		if (instructionsEl) {
+			// Payment & concierge details come from admin Settings (same source as the email)
+			var paySettings = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
 			var instHtml = '';
 			if (state.paymentMethod === 'office') {
 				instHtml += '<div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">';
@@ -1593,9 +1595,9 @@
 				instHtml += '</div>';
 
 				instHtml += '<div style="background: #f8fafc; border: 1px solid var(--mpk-border); border-radius: 12px; padding: 14px 18px; font-size: 13px; line-height: 1.6;">';
-				instHtml += '<p style="margin: 0;"><strong>Address:</strong> Boduthakurufaanu Magu, Malé 20026, Maldives</p>';
-				instHtml += '<p style="margin: 0;"><strong>Phone:</strong> +000 000 0000</p>';
-				instHtml += '<p style="margin: 0;"><strong>Email:</strong> info@example.com</p>';
+				if (paySettings.office_address) instHtml += '<p style="margin: 0;"><strong>Address:</strong> ' + escHtml(paySettings.office_address) + '</p>';
+				if (paySettings.support_phone) instHtml += '<p style="margin: 0;"><strong>Phone:</strong> ' + escHtml(paySettings.support_phone) + '</p>';
+				if (paySettings.support_email) instHtml += '<p style="margin: 0;"><strong>Email:</strong> ' + escHtml(paySettings.support_email) + '</p>';
 				instHtml += '<p style="margin: 0;"><strong>Hours:</strong> Sun–Thu, 9:00 AM – 6:00 PM</p>';
 				instHtml += '</div>';
 			} else if (state.paymentMethod === 'bank') {
@@ -1608,10 +1610,10 @@
 				instHtml += '</div>';
 
 				instHtml += '<div style="background: #f8fafc; border: 1px solid var(--mpk-border); border-radius: 12px; padding: 14px 18px; font-size: 13px; line-height: 1.6;">';
-				instHtml += '<p style="margin: 0;"><strong>Bank:</strong> Bank of Maldives</p>';
-				instHtml += '<p style="margin: 0;"><strong>Account Name:</strong> Maldives Luxury Travel Pvt Ltd</p>';
-				instHtml += '<p style="margin: 0;"><strong>Account Number:</strong> 7730-000123-456</p>';
-				instHtml += '<p style="margin: 0;"><strong>SWIFT:</strong> MALBMVMV</p>';
+				if (paySettings.bank_name) instHtml += '<p style="margin: 0;"><strong>Bank:</strong> ' + escHtml(paySettings.bank_name) + '</p>';
+				if (paySettings.bank_account_name) instHtml += '<p style="margin: 0;"><strong>Account Name:</strong> ' + escHtml(paySettings.bank_account_name) + '</p>';
+				if (paySettings.bank_account_no) instHtml += '<p style="margin: 0;"><strong>Account Number:</strong> ' + escHtml(paySettings.bank_account_no) + '</p>';
+				if (paySettings.bank_swift) instHtml += '<p style="margin: 0;"><strong>SWIFT:</strong> ' + escHtml(paySettings.bank_swift) + '</p>';
 				instHtml += '<p style="margin: 8px 0 0; font-size: 12px; color: var(--mpk-text-muted); font-style: italic;">Please include your booking reference (' + escHtml(state.confirmationCode) + ') in the transfer note.</p>';
 				instHtml += '</div>';
 			} else {
@@ -1633,6 +1635,16 @@
 				}
 			};
 		}
+	}
+
+	// Fetch a fresh booking nonce (resolves to '' on failure -> falls back to the page nonce)
+	function getFreshNonce(ajaxUrl) {
+		var nd = new FormData();
+		nd.append('action', 'mpk_get_nonce');
+		return fetch(ajaxUrl, { method: 'POST', body: nd, credentials: 'same-origin', cache: 'no-store' })
+			.then(function (r) { return r.json(); })
+			.then(function (res) { return (res && res.success && res.data && res.data.nonce) ? res.data.nonce : ''; })
+			.catch(function () { return ''; });
 	}
 
 	// AJAX Booking Submission for Step 4
@@ -1746,11 +1758,15 @@
 		var pricing = calcPricing();
 		formData.append('grand_total', pricing.total ? pricing.total.toFixed(2) : '0.00');
 
-		// Send AJAX POST
-		fetch(ajaxUrl, {
-			method: 'POST',
-			body: formData,
-			credentials: 'same-origin'
+		// Send AJAX POST (refresh nonce first so cached pages never submit an expired one)
+		getFreshNonce(ajaxUrl)
+		.then(function (freshNonce) {
+			if (freshNonce) formData.set('nonce', freshNonce);
+			return fetch(ajaxUrl, {
+				method: 'POST',
+				body: formData,
+				credentials: 'same-origin'
+			});
 		})
 		.then(function (response) {
 			return response.json();
