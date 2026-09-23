@@ -20,6 +20,7 @@ class MPK_Ajax_Handler {
 	public function __construct() {
 		add_action( 'wp_ajax_mpk_submit_booking', array( $this, 'handle_submit_booking' ) );
 		add_action( 'wp_ajax_nopriv_mpk_submit_booking', array( $this, 'handle_submit_booking' ) );
+		add_action( 'wp_ajax_mpk_delete_booking', array( $this, 'handle_delete_booking' ) );
 	}
 
 	/**
@@ -230,6 +231,83 @@ class MPK_Ajax_Handler {
 				'reference_id' => $result['reference_id'],
 				'booking_id'   => $result['id'],
 				'message'      => __( 'Booking saved successfully', 'maldives-packages' ),
+			)
+		);
+	}
+
+	/**
+	 * AJAX Handler: Permanently delete a booking record (Administrator only).
+	 */
+	public function handle_delete_booking() {
+		// 1. Permission check
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Permission denied. Administrator access required.', 'maldives-packages' ) ),
+				403
+			);
+		}
+
+		// 2. Nonce verification (supports mpk_admin_nonce)
+		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'mpk_admin_nonce' ) && ! wp_verify_nonce( $nonce, 'mpk_booking_nonce' ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Security verification failed. Please refresh the page and try again.', 'maldives-packages' ) ),
+				403
+			);
+		}
+
+		// 3. Booking ID validation
+		$booking_id = isset( $_POST['booking_id'] ) ? absint( $_POST['booking_id'] ) : 0;
+		if ( ! $booking_id ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Invalid booking ID.', 'maldives-packages' ) ),
+				400
+			);
+		}
+
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'mpk_bookings';
+
+		// Optional: clean up attached passport copy file
+		$passport_url = $wpdb->get_var( $wpdb->prepare( "SELECT passport_file_url FROM {$table_name} WHERE id = %d", $booking_id ) );
+		if ( ! empty( $passport_url ) ) {
+			$upload_dir = wp_upload_dir();
+			$file_path  = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $passport_url );
+			if ( file_exists( $file_path ) && is_file( $file_path ) && strpos( $file_path, 'mpk-passports' ) !== false ) {
+				@unlink( $file_path );
+			}
+		}
+
+		// Delete record from custom table
+		$deleted = $wpdb->delete(
+			$table_name,
+			array( 'id' => $booking_id ),
+			array( '%d' )
+		);
+
+		if ( false === $deleted || 0 === $deleted ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Failed to delete booking or record already removed.', 'maldives-packages' ) ),
+				500
+			);
+		}
+
+		// Recalculate summary stats for admin dashboard
+		$count_pending   = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name} WHERE status = 'Pending'" );
+		$count_approved  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name} WHERE status IN ('Approved', 'Confirmed')" );
+		$count_cancelled = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name} WHERE status = 'Cancelled'" );
+		$count_total     = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name}" );
+
+		wp_send_json_success(
+			array(
+				'booking_id' => $booking_id,
+				'message'    => __( 'Booking record permanently deleted.', 'maldives-packages' ),
+				'counts'     => array(
+					'total'     => $count_total,
+					'pending'   => $count_pending,
+					'approved'  => $count_approved,
+					'cancelled' => $count_cancelled,
+				),
 			)
 		);
 	}

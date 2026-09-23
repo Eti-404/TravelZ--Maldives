@@ -102,12 +102,13 @@
 			id: 'h-paradise',
 			name: 'Paradise Overwater Resort',
 			location: 'resort',
+			menu_order: 1,
 			stars: 5,
 			review: 4.9,
 			reviewLabel: 'Exceptional',
-			area: 'Private Atoll',
+			area: 'South Atoll',
 			image: 'assets/images/hotel-2.jpg',
-			amenities: ['Overwater', 'Spa', 'All Inclusive', 'Diving'],
+			amenities: ['Overwater', 'Spa', 'All Inclusive', 'Infinity'],
 			rooms: [
 				{ id: 'r1', name: 'Beach Villa with Pool', meal: 'All Inclusive', price: 480, room_type: 'With Pool', bed_type: 'King', amenities: ['With Pool', 'King', 'Private Beach', 'Plunge Pool'] },
 				{ id: 'r2', name: 'Water Villa', meal: 'All Inclusive', price: 720, room_type: 'Water Villa', bed_type: 'King', amenities: ['Water Villa', 'King', 'Lagoon Access', 'Sun Deck'] }
@@ -117,6 +118,7 @@
 			id: 'h-lagoon',
 			name: 'Lagoon Crystal Resort',
 			location: 'resort',
+			menu_order: 2,
 			stars: 5,
 			review: 4.8,
 			reviewLabel: 'Exceptional',
@@ -124,8 +126,8 @@
 			image: 'assets/images/hotel-2.jpg',
 			amenities: ['Overwater', 'Spa', 'Fine Dining'],
 			rooms: [
-				{ id: 'r1', name: 'Sunset Water Villa', meal: 'Breakfast & Dinner', price: 560, room_type: 'Water Villa', bed_type: 'Double', amenities: ['Water Villa', 'Sea View', 'Double', 'King'] },
-				{ id: 'r2', name: 'Royal Suite with Pool', meal: 'All Inclusive', price: 890, room_type: 'With Pool', bed_type: 'Triple', amenities: ['With Pool', 'Triple', 'Sun Terrace', 'Jacuzzi'] }
+				{ id: 'r1', name: 'Sunset Water Villa', meal: 'Breakfast & Dinner', price: 560, room_type: 'Water Villa', bed_type: 'King', amenities: ['Water Villa', 'Sea View', 'King'] },
+				{ id: 'r2', name: 'Royal Suite with Pool', meal: 'All Inclusive', price: 890, room_type: 'With Pool', bed_type: 'King', amenities: ['With Pool', 'King', 'Private Infinity Pool', 'Butler Service'] }
 			]
 		}
 	];
@@ -537,8 +539,10 @@
 		// Back button visibility
 		if (state.step > 1 && state.step < 5) {
 			btnBack.style.display = 'inline-flex';
+			btnBack.style.visibility = 'visible';
 		} else {
-			btnBack.style.display = 'none';
+			btnBack.style.visibility = 'hidden';
+			btnBack.style.display = 'inline-flex';
 		}
 
 		// Next button & labels
@@ -795,6 +799,17 @@
 				renderHotels();
 			});
 		}
+
+		// Accordion collapse toggles for filter sections
+		var filterAccordionTitles = document.querySelectorAll('.mpk-filter-accordion-item .mpk-filter-title');
+		for (var fa = 0; fa < filterAccordionTitles.length; fa++) {
+			filterAccordionTitles[fa].addEventListener('click', function () {
+				var item = this.closest('.mpk-filter-accordion-item');
+				if (item) {
+					item.classList.toggle('collapsed');
+				}
+			});
+		}
 	}
 
 	function resetAllFilters() {
@@ -863,6 +878,16 @@
 				});
 
 				return hasMatchingRoom;
+			});
+
+			// Sort hotels by menu_order ASC so order 1 is always first
+			hotelsForLoc.sort(function (a, b) {
+				var orderA = (a.menu_order && a.menu_order > 0) ? a.menu_order : 99;
+				var orderB = (b.menu_order && b.menu_order > 0) ? b.menu_order : 99;
+				if (orderA === orderB) {
+					return (a.name || '').localeCompare(b.name || '');
+				}
+				return orderA - orderB;
 			});
 
 			html += '<div class="mpk-location-section">';

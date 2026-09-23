@@ -203,12 +203,6 @@ class MPK_Booking_Manager {
 		);
 	}
 
-	/**
-	 * Get a booking record by reference ID.
-	 *
-	 * @param string $reference_id
-	 * @return object|null
-	 */
 	public static function get_booking_by_reference( $reference_id ) {
 		global $wpdb;
 		$table_name = self::get_table_name();
@@ -216,5 +210,24 @@ class MPK_Booking_Manager {
 		return $wpdb->get_row(
 			$wpdb->prepare( "SELECT * FROM {$table_name} WHERE reference_id = %s LIMIT 1", $reference_id )
 		);
+	}
+
+	/**
+	 * Permanently delete a booking record by ID.
+	 *
+	 * @param int $id Booking record ID.
+	 * @return bool True on success, false on failure.
+	 */
+	public static function delete_booking( $id ) {
+		global $wpdb;
+		$table_name = self::get_table_name();
+
+		$deleted = $wpdb->delete(
+			$table_name,
+			array( 'id' => absint( $id ) ),
+			array( '%d' )
+		);
+
+		return ( false !== $deleted && $deleted > 0 );
 	}
 }

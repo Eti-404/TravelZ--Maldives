@@ -43,6 +43,7 @@ class MPK_Admin {
 		add_action( 'admin_menu', array( $this, 'register_unified_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'wp_ajax_mpk_update_booking_status', array( $this, 'ajax_update_booking_status' ) );
+		add_action( 'wp_ajax_mpk_delete_booking', array( $this, 'ajax_delete_booking' ) );
 		add_action( 'admin_init', array( $this, 'handle_admin_redirects' ) );
 		add_filter( 'parent_file', array( $this, 'filter_parent_file' ) );
 		add_filter( 'submenu_file', array( $this, 'filter_submenu_file' ) );
@@ -113,9 +114,10 @@ class MPK_Admin {
 	 * Render settings page callback.
 	 */
 	public function render_settings_page() {
-		if ( class_exists( 'MPK_Settings' ) ) {
-			MPK_Settings::render_page();
+		if ( ! class_exists( 'MPK_Settings' ) ) {
+			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-settings.php';
 		}
+		MPK_Settings::render_page();
 	}
 
 	/**
@@ -292,6 +294,17 @@ class MPK_Admin {
 	}
 
 	/**
+	 * AJAX Handler: Delete booking.
+	 */
+	public function ajax_delete_booking() {
+		if ( ! class_exists( 'MPK_Ajax_Handler' ) ) {
+			require_once MPK_PLUGIN_DIR . 'includes/class-mpk-ajax-handler.php';
+		}
+		$handler = new MPK_Ajax_Handler();
+		$handler->handle_delete_booking();
+	}
+
+	/**
 	 * Render the main Maldives Bookings admin page.
 	 */
 	public function render_bookings_page() {
@@ -444,12 +457,12 @@ class MPK_Admin {
 
 			<!-- Bookings List Table -->
 			<div class="mpk-table-card">
-				<table class="wp-list-table widefat fixed striped mpk-bookings-table">
+				<table class="wp-list-table widefat striped mpk-bookings-table">
 					<thead>
 						<tr>
 							<th style="width: 140px;"><?php esc_html_e( 'Ref Code / Date', 'maldives-packages' ); ?></th>
 							<th style="width: 180px;"><?php esc_html_e( 'Guest Details', 'maldives-packages' ); ?></th>
-							<th><?php esc_html_e( 'Resort & Room', 'maldives-packages' ); ?></th>
+							<th class="mpk-th-resort" style="min-width: 220px;"><?php esc_html_e( 'Resort & Room', 'maldives-packages' ); ?></th>
 							<th style="width: 170px;"><?php esc_html_e( 'Travel Dates', 'maldives-packages' ); ?></th>
 							<th style="width: 130px;"><?php esc_html_e( 'Guests & Rooms', 'maldives-packages' ); ?></th>
 							<th style="width: 140px;"><?php esc_html_e( 'Amount & Payment', 'maldives-packages' ); ?></th>
@@ -547,7 +560,7 @@ class MPK_Admin {
 									</td>
 
 									<!-- Resort & Room -->
-									<td>
+									<td class="mpk-resort-col">
 										<div class="mpk-resort-title"><?php echo esc_html( $b->hotel_name ?: '—' ); ?></div>
 										<div class="mpk-cell-sub">
 											<?php echo esc_html( $b->room_name ?: 'Standard Room' ); ?>
@@ -611,6 +624,10 @@ class MPK_Admin {
 
 											<button type="button" class="button button-small mpk-btn-open-modal" data-details="<?php echo esc_attr( wp_json_encode( $modal_data ) ); ?>" title="<?php esc_attr_e( 'View Details', 'maldives-packages' ); ?>">
 												<span class="dashicons dashicons-visibility"></span>
+											</button>
+
+											<button type="button" class="button button-small mpk-btn-delete-booking" data-booking-id="<?php echo esc_attr( $b->id ); ?>" data-reference="<?php echo esc_attr( $b->reference_id ); ?>" title="<?php esc_attr_e( 'Delete Booking', 'maldives-packages' ); ?>">
+												<span class="dashicons dashicons-trash"></span>
 											</button>
 										</div>
 									</td>
@@ -730,9 +747,13 @@ class MPK_Admin {
 
 		<!-- Scoped Admin Stylesheet & Javascript -->
 		<style>
-			.mpk-admin-wrap {
-				max-width: 1300px;
-				margin: 20px 20px 40px 0;
+			.wrap.mpk-admin-wrap,
+			.mpk-admin-wrap,
+			.mpk-dashboard-container {
+				max-width: 100% !important;
+				width: calc(100% - 20px) !important;
+				margin: 20px 20px 40px 0 !important;
+				box-sizing: border-box;
 				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 			}
 			.mpk-admin-header {
@@ -745,6 +766,8 @@ class MPK_Admin {
 				border-radius: 12px;
 				box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 				border: 1px solid #e2e8f0;
+				width: 100%;
+				box-sizing: border-box;
 			}
 			.mpk-header-left {
 				display: flex;
@@ -796,9 +819,15 @@ class MPK_Admin {
 			}
 			.mpk-stats-grid {
 				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 				gap: 16px;
 				margin-bottom: 24px;
+				width: 100%;
+			}
+			@media (min-width: 1200px) {
+				.mpk-stats-grid {
+					grid-template-columns: repeat(5, 1fr);
+				}
 			}
 			.mpk-stat-card {
 				background: #ffffff;
@@ -852,6 +881,7 @@ class MPK_Admin {
 				flex-wrap: wrap;
 				gap: 12px;
 				margin-bottom: 14px;
+				width: 100%;
 			}
 			.mpk-status-tabs {
 				margin: 0;
@@ -876,12 +906,22 @@ class MPK_Admin {
 				background: #ffffff;
 				border: 1px solid #e2e8f0;
 				border-radius: 12px;
-				overflow: hidden;
+				overflow-x: auto;
 				box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+				width: 100%;
 			}
-			.mpk-bookings-table {
+			.mpk-bookings-table,
+			table.wp-list-table.mpk-bookings-table {
+				width: 100% !important;
+				table-layout: auto !important;
 				border: none;
 				border-collapse: collapse;
+			}
+			.mpk-bookings-table td:nth-child(3),
+			.mpk-bookings-table th:nth-child(3),
+			.mpk-resort-col {
+				min-width: 220px !important;
+				white-space: normal !important;
 			}
 			.mpk-bookings-table thead th {
 				background: #f8fafc;
@@ -926,8 +966,11 @@ class MPK_Admin {
 			}
 			.mpk-resort-title {
 				font-weight: 600;
-				font-size: 13px;
+				font-size: 14px;
 				color: #1e293b;
+				white-space: normal;
+				word-break: normal;
+				line-height: 1.35;
 			}
 			.mpk-loc-tag {
 				display: inline-block;
@@ -1026,6 +1069,30 @@ class MPK_Admin {
 				display: inline-flex;
 				align-items: center;
 				justify-content: center;
+			}
+			.mpk-btn-delete-booking {
+				padding: 0 6px !important;
+				height: 28px !important;
+				line-height: 26px !important;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				color: #dc2626 !important;
+				border-color: #fca5a5 !important;
+				background: #fef2f2 !important;
+				transition: all 0.15s ease;
+			}
+			.mpk-btn-delete-booking:hover,
+			.mpk-btn-delete-booking:focus {
+				color: #ffffff !important;
+				background: #dc2626 !important;
+				border-color: #b91c1c !important;
+			}
+			.mpk-btn-delete-booking .dashicons {
+				font-size: 16px;
+				width: 16px;
+				height: 16px;
+				line-height: 16px;
 			}
 
 			/* Modal Styles */
@@ -1339,6 +1406,78 @@ class MPK_Admin {
 						var rowSelect = document.querySelector('.mpk-quick-status-select[data-booking-id="' + currentModalBookingId + '"]');
 						if (rowSelect) rowSelect.value = statusToSet;
 						updateStatus(currentModalBookingId, statusToSet, rowSelect);
+					});
+				}
+
+				// Handle Delete Booking with Confirmation & AJAX
+				var deleteBtns = document.querySelectorAll('.mpk-btn-delete-booking');
+				for (var d = 0; d < deleteBtns.length; d++) {
+					deleteBtns[d].addEventListener('click', function(e) {
+						e.preventDefault();
+						var btn = this;
+						var bookingId = btn.getAttribute('data-booking-id');
+						var ref = btn.getAttribute('data-reference') || ('#' + bookingId);
+
+						if (!confirm('Are you sure you want to permanently delete booking ' + ref + '? This action cannot be undone.')) {
+							return;
+						}
+
+						btn.disabled = true;
+						var row = document.getElementById('mpk-booking-row-' + bookingId);
+						if (row) {
+							row.style.opacity = '0.5';
+							row.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+						}
+
+						var formData = new FormData();
+						formData.append('action', 'mpk_delete_booking');
+						formData.append('nonce', adminNonce);
+						formData.append('booking_id', bookingId);
+
+						fetch(ajaxUrl, {
+							method: 'POST',
+							body: formData
+						})
+						.then(function(res) { return res.json(); })
+						.then(function(data) {
+							if (data && data.success) {
+								if (row) {
+									row.style.transform = 'scale(0.96)';
+									row.style.opacity = '0';
+									setTimeout(function() {
+										if (row.parentNode) row.parentNode.removeChild(row);
+										// If table empty, show empty state
+										var tbody = document.querySelector('.mpk-bookings-table tbody');
+										if (tbody && tbody.children.length === 0) {
+											tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 36px 12px; color: #64748b;"><p style="font-size: 14px; margin: 0;">No booking records found.</p></td></tr>';
+										}
+									}, 260);
+								}
+
+								// Update stat counters
+								if (data.data && data.data.counts) {
+									var cTotal = document.getElementById('mpk-stat-count-total');
+									var cPending = document.getElementById('mpk-stat-count-pending');
+									var cApproved = document.getElementById('mpk-stat-count-approved');
+									var cCancelled = document.getElementById('mpk-stat-count-cancelled');
+									if (cTotal) cTotal.textContent = data.data.counts.total;
+									if (cPending) cPending.textContent = data.data.counts.pending;
+									if (cApproved) cApproved.textContent = data.data.counts.approved;
+									if (cCancelled) cCancelled.textContent = data.data.counts.cancelled;
+								}
+
+								showToast(data.data.message || 'Booking deleted successfully.');
+							} else {
+								btn.disabled = false;
+								if (row) row.style.opacity = '1';
+								alert((data && data.data && data.data.message) ? data.data.message : 'Error deleting booking.');
+							}
+						})
+						.catch(function(err) {
+							btn.disabled = false;
+							if (row) row.style.opacity = '1';
+							alert('Network error while deleting booking.');
+						});
 					});
 				}
 			})();

@@ -18,7 +18,7 @@ class MPK_Seeder {
 	/**
 	 * Seed version to control upgrades without duplicates.
 	 */
-	const SEED_VERSION = '1.1.0';
+	const SEED_VERSION = '1.2.0';
 
 	/**
 	 * Run the seeding process.
@@ -95,11 +95,14 @@ class MPK_Seeder {
 				)
 			);
 
+			$menu_order = isset( $h['menu_order'] ) ? (int) $h['menu_order'] : 0;
+
 			$post_data = array(
 				'post_title'   => $h['name'],
 				'post_name'    => $h['id'],
 				'post_status'  => 'publish',
 				'post_type'    => 'mpk_hotel',
+				'menu_order'   => $menu_order,
 			);
 
 			if ( ! empty( $existing ) ) {
@@ -116,6 +119,7 @@ class MPK_Seeder {
 
 				// Update metadata
 				update_post_meta( $post_id, '_mpk_hotel_id', $h['id'] );
+				update_post_meta( $post_id, '_mpk_menu_order', $menu_order );
 				update_post_meta( $post_id, '_mpk_location', $h['location'] );
 				update_post_meta( $post_id, '_mpk_stars', $h['stars'] );
 				update_post_meta( $post_id, '_mpk_review', $h['review'] );
@@ -171,6 +175,7 @@ class MPK_Seeder {
 				'id'          => 'h-azure',
 				'name'        => 'Azure Bay Residence',
 				'location'    => 'hulhumale',
+				'menu_order'  => 1,
 				'stars'       => 4,
 				'review'      => 4.7,
 				'reviewLabel' => 'Excellent',
@@ -202,6 +207,7 @@ class MPK_Seeder {
 				'id'          => 'h-coral',
 				'name'        => 'Coral Sands Boutique',
 				'location'    => 'hulhumale',
+				'menu_order'  => 2,
 				'stars'       => 3,
 				'review'      => 4.4,
 				'reviewLabel' => 'Very Good',
@@ -233,6 +239,7 @@ class MPK_Seeder {
 				'id'          => 'h-pearl',
 				'name'        => 'Pearl Lagoon Inn',
 				'location'    => 'maafushi',
+				'menu_order'  => 1,
 				'stars'       => 3,
 				'review'      => 4.5,
 				'reviewLabel' => 'Very Good',
@@ -264,6 +271,7 @@ class MPK_Seeder {
 				'id'          => 'h-island',
 				'name'        => 'Island Breeze Hotel',
 				'location'    => 'maafushi',
+				'menu_order'  => 2,
 				'stars'       => 4,
 				'review'      => 4.6,
 				'reviewLabel' => 'Excellent',
@@ -295,12 +303,13 @@ class MPK_Seeder {
 				'id'          => 'h-paradise',
 				'name'        => 'Paradise Overwater Resort',
 				'location'    => 'resort',
+				'menu_order'  => 1,
 				'stars'       => 5,
 				'review'      => 4.9,
 				'reviewLabel' => 'Exceptional',
-				'area'        => 'Private Atoll',
+				'area'        => 'South Atoll',
 				'image'       => MPK_PLUGIN_URL . 'assets/images/hotel-2.jpg',
-				'amenities'   => array( 'Overwater', 'Spa', 'All Inclusive', 'Diving' ),
+				'amenities'   => array( 'Overwater', 'Spa', 'All Inclusive', 'Infinity' ),
 				'rooms'       => array(
 					array(
 						'id'        => 'r1',
@@ -326,6 +335,7 @@ class MPK_Seeder {
 				'id'          => 'h-lagoon',
 				'name'        => 'Lagoon Crystal Resort',
 				'location'    => 'resort',
+				'menu_order'  => 2,
 				'stars'       => 5,
 				'review'      => 4.8,
 				'reviewLabel' => 'Exceptional',
@@ -339,8 +349,8 @@ class MPK_Seeder {
 						'meal'      => 'Breakfast & Dinner',
 						'price'     => 560,
 						'room_type' => 'Water Villa',
-						'bed_type'  => 'Double',
-						'amenities' => array( 'Water Villa', 'Sea View', 'Double', 'King' ),
+						'bed_type'  => 'King',
+						'amenities' => array( 'Water Villa', 'Sea View', 'King' ),
 					),
 					array(
 						'id'        => 'r2',
@@ -348,8 +358,8 @@ class MPK_Seeder {
 						'meal'      => 'All Inclusive',
 						'price'     => 890,
 						'room_type' => 'With Pool',
-						'bed_type'  => 'Triple',
-						'amenities' => array( 'With Pool', 'Triple', 'King', 'Private Infinity Pool', 'Butler Service' ),
+						'bed_type'  => 'King',
+						'amenities' => array( 'With Pool', 'King', 'Private Infinity Pool', 'Butler Service' ),
 					),
 				),
 			),

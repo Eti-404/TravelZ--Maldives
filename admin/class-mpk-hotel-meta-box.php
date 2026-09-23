@@ -30,8 +30,13 @@ class MPK_Hotel_Meta_Box {
 	 * @param string $hook Admin hook.
 	 */
 	public function enqueue_admin_assets( $hook ) {
-		global $post_type;
-		if ( 'mpk_hotel' !== $post_type ) {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$current_post_type = $screen && ! empty( $screen->post_type ) ? $screen->post_type : ( isset( $GLOBALS['post_type'] ) ? $GLOBALS['post_type'] : '' );
+		if ( empty( $current_post_type ) && isset( $_GET['post_type'] ) ) {
+			$current_post_type = sanitize_key( $_GET['post_type'] );
+		}
+
+		if ( 'mpk_hotel' !== $current_post_type ) {
 			return;
 		}
 
@@ -140,13 +145,22 @@ class MPK_Hotel_Meta_Box {
 		);
 
 		add_meta_box(
-			'mpk_hotel_rooms_meta_box',
-			__( 'Hotel Room Inventories (Dynamic Repeater)', 'maldives-packages' ),
-			array( $this, 'render_meta_box' ),
+			'mpk_hotel_rooms_metabox',
+			__( 'Hotel Rooms & Pricing Configuration', 'maldives-packages' ),
+			array( $this, 'render_rooms_metabox' ),
 			'mpk_hotel',
 			'normal',
 			'high'
 		);
+	}
+
+	/**
+	 * Render rooms metabox (Dynamic Room Repeater).
+	 *
+	 * @param WP_Post $post Current post object.
+	 */
+	public function render_rooms_metabox( $post ) {
+		$this->render_meta_box( $post );
 	}
 
 	/**
@@ -247,7 +261,17 @@ class MPK_Hotel_Meta_Box {
 		}
 
 		if ( empty( $rooms ) || ! is_array( $rooms ) ) {
-			$rooms = array();
+			$rooms = array(
+				array(
+					'id'        => 'r1',
+					'name'      => '',
+					'meal'      => 'Breakfast',
+					'price'     => '',
+					'room_type' => 'Balcony',
+					'bed_type'  => 'Double',
+					'amenities' => array(),
+				),
+			);
 		}
 		?>
 		<div class="mpk-repeater-wrap" id="mpk-rooms-repeater-wrap">
@@ -597,28 +621,30 @@ class MPK_Hotel_Meta_Box {
 					$room_counter++;
 				}
 			}
-		}
 
-		// Fallback standard room if no rooms configured by administrator
-		if ( empty( $sanitized_rooms ) ) {
-			$existing_rooms = get_post_meta( $post_id, '_mpk_hotel_rooms', true );
-			if ( ! empty( $existing_rooms ) && is_array( $existing_rooms ) ) {
-				$sanitized_rooms = $existing_rooms;
-			} else {
-				$sanitized_rooms = array(
-					array(
-						'id'        => 'r1',
-						'name'      => __( 'Standard Deluxe Room', 'maldives-packages' ),
-						'meal'      => 'Breakfast Included',
-						'price'     => 140.00,
-						'amenities' => array( 'Double', 'Air Conditioning', 'Free Wifi' ),
-					),
-				);
+			// Fallback standard room if no rooms configured by administrator
+			if ( empty( $sanitized_rooms ) ) {
+				$existing_rooms = get_post_meta( $post_id, '_mpk_hotel_rooms', true );
+				if ( ! empty( $existing_rooms ) && is_array( $existing_rooms ) ) {
+					$sanitized_rooms = $existing_rooms;
+				} else {
+					$sanitized_rooms = array(
+						array(
+							'id'        => 'r1',
+							'name'      => __( 'Standard Deluxe Room', 'maldives-packages' ),
+							'meal'      => 'Breakfast Included',
+							'price'     => 140.00,
+							'room_type' => 'Balcony',
+							'bed_type'  => 'Double',
+							'amenities' => array( 'Double', 'Balcony', 'Air Conditioning', 'Free Wifi' ),
+						),
+					);
+				}
 			}
-		}
 
-		update_post_meta( $post_id, '_mpk_hotel_rooms', $sanitized_rooms );
-		update_post_meta( $post_id, '_mpk_rooms', $sanitized_rooms );
+			update_post_meta( $post_id, '_mpk_hotel_rooms', $sanitized_rooms );
+			update_post_meta( $post_id, '_mpk_rooms', $sanitized_rooms );
+		}
 
 		// Ensure unique hotel ID meta
 		$hotel_code = get_post_meta( $post_id, '_mpk_hotel_id', true );
