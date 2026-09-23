@@ -43,6 +43,7 @@ class MPK_Admin {
 		add_action( 'admin_menu', array( $this, 'register_unified_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'wp_ajax_mpk_update_booking_status', array( $this, 'ajax_update_booking_status' ) );
+		add_action( 'wp_ajax_mpk_delete_booking', array( $this, 'ajax_delete_booking' ) );
 		add_action( 'admin_init', array( $this, 'handle_admin_redirects' ) );
 		add_filter( 'parent_file', array( $this, 'filter_parent_file' ) );
 		add_filter( 'submenu_file', array( $this, 'filter_submenu_file' ) );
@@ -290,6 +291,17 @@ class MPK_Admin {
 				),
 			)
 		);
+	}
+
+	/**
+	 * AJAX Handler: Delete booking.
+	 */
+	public function ajax_delete_booking() {
+		if ( ! class_exists( 'MPK_Ajax_Handler' ) ) {
+			require_once MPK_PLUGIN_DIR . 'includes/class-mpk-ajax-handler.php';
+		}
+		$handler = new MPK_Ajax_Handler();
+		$handler->handle_delete_booking();
 	}
 
 	/**
@@ -612,6 +624,10 @@ class MPK_Admin {
 
 											<button type="button" class="button button-small mpk-btn-open-modal" data-details="<?php echo esc_attr( wp_json_encode( $modal_data ) ); ?>" title="<?php esc_attr_e( 'View Details', 'maldives-packages' ); ?>">
 												<span class="dashicons dashicons-visibility"></span>
+											</button>
+
+											<button type="button" class="button button-small mpk-btn-delete-booking" data-booking-id="<?php echo esc_attr( $b->id ); ?>" data-reference="<?php echo esc_attr( $b->reference_id ); ?>" title="<?php esc_attr_e( 'Delete Booking', 'maldives-packages' ); ?>">
+												<span class="dashicons dashicons-trash"></span>
 											</button>
 										</div>
 									</td>
@@ -1028,6 +1044,30 @@ class MPK_Admin {
 				align-items: center;
 				justify-content: center;
 			}
+			.mpk-btn-delete-booking {
+				padding: 0 6px !important;
+				height: 28px !important;
+				line-height: 26px !important;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				color: #dc2626 !important;
+				border-color: #fca5a5 !important;
+				background: #fef2f2 !important;
+				transition: all 0.15s ease;
+			}
+			.mpk-btn-delete-booking:hover,
+			.mpk-btn-delete-booking:focus {
+				color: #ffffff !important;
+				background: #dc2626 !important;
+				border-color: #b91c1c !important;
+			}
+			.mpk-btn-delete-booking .dashicons {
+				font-size: 16px;
+				width: 16px;
+				height: 16px;
+				line-height: 16px;
+			}
 
 			/* Modal Styles */
 			.mpk-modal-backdrop {
@@ -1340,6 +1380,78 @@ class MPK_Admin {
 						var rowSelect = document.querySelector('.mpk-quick-status-select[data-booking-id="' + currentModalBookingId + '"]');
 						if (rowSelect) rowSelect.value = statusToSet;
 						updateStatus(currentModalBookingId, statusToSet, rowSelect);
+					});
+				}
+
+				// Handle Delete Booking with Confirmation & AJAX
+				var deleteBtns = document.querySelectorAll('.mpk-btn-delete-booking');
+				for (var d = 0; d < deleteBtns.length; d++) {
+					deleteBtns[d].addEventListener('click', function(e) {
+						e.preventDefault();
+						var btn = this;
+						var bookingId = btn.getAttribute('data-booking-id');
+						var ref = btn.getAttribute('data-reference') || ('#' + bookingId);
+
+						if (!confirm('Are you sure you want to permanently delete booking ' + ref + '? This action cannot be undone.')) {
+							return;
+						}
+
+						btn.disabled = true;
+						var row = document.getElementById('mpk-booking-row-' + bookingId);
+						if (row) {
+							row.style.opacity = '0.5';
+							row.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+						}
+
+						var formData = new FormData();
+						formData.append('action', 'mpk_delete_booking');
+						formData.append('nonce', adminNonce);
+						formData.append('booking_id', bookingId);
+
+						fetch(ajaxUrl, {
+							method: 'POST',
+							body: formData
+						})
+						.then(function(res) { return res.json(); })
+						.then(function(data) {
+							if (data && data.success) {
+								if (row) {
+									row.style.transform = 'scale(0.96)';
+									row.style.opacity = '0';
+									setTimeout(function() {
+										if (row.parentNode) row.parentNode.removeChild(row);
+										// If table empty, show empty state
+										var tbody = document.querySelector('.mpk-bookings-table tbody');
+										if (tbody && tbody.children.length === 0) {
+											tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 36px 12px; color: #64748b;"><p style="font-size: 14px; margin: 0;">No booking records found.</p></td></tr>';
+										}
+									}, 260);
+								}
+
+								// Update stat counters
+								if (data.data && data.data.counts) {
+									var cTotal = document.getElementById('mpk-stat-count-total');
+									var cPending = document.getElementById('mpk-stat-count-pending');
+									var cApproved = document.getElementById('mpk-stat-count-approved');
+									var cCancelled = document.getElementById('mpk-stat-count-cancelled');
+									if (cTotal) cTotal.textContent = data.data.counts.total;
+									if (cPending) cPending.textContent = data.data.counts.pending;
+									if (cApproved) cApproved.textContent = data.data.counts.approved;
+									if (cCancelled) cCancelled.textContent = data.data.counts.cancelled;
+								}
+
+								showToast(data.data.message || 'Booking deleted successfully.');
+							} else {
+								btn.disabled = false;
+								if (row) row.style.opacity = '1';
+								alert((data && data.data && data.data.message) ? data.data.message : 'Error deleting booking.');
+							}
+						})
+						.catch(function(err) {
+							btn.disabled = false;
+							if (row) row.style.opacity = '1';
+							alert('Network error while deleting booking.');
+						});
 					});
 				}
 			})();

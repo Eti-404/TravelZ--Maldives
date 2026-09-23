@@ -37,7 +37,9 @@
 
 /* Base Wrapper & Scoping */
 html:has(.mpk-booking-app),
-body:has(.mpk-booking-app) {
+body:has(.mpk-booking-app),
+html:has(.mpk-hero),
+body:has(.mpk-hero) {
 	overflow-x: clip;
 }
 
@@ -117,6 +119,7 @@ body:has(.mpk-booking-app) {
 }
 
 /* HERO SECTION (Full-Width Edge-to-Edge Breakout) */
+.mpk-hero,
 .mpk-booking-app .mpk-hero {
 	position: relative;
 	overflow: hidden;
@@ -129,17 +132,24 @@ body:has(.mpk-booking-app) {
 	right: 50%;
 	margin-left: -50vw;
 	margin-right: -50vw;
-	padding: 72px 0 120px;
+	padding-top: 72px;
+	padding-bottom: 120px;
+	padding-left: 0;
+	padding-right: 0;
+	margin-top: 0;
 	margin-bottom: 0;
 	box-sizing: border-box;
 }
 
 @media (min-width: 640px) {
+	.mpk-hero,
 	.mpk-booking-app .mpk-hero {
-		padding: 96px 0 136px;
+		padding-top: 96px;
+		padding-bottom: 136px;
 	}
 }
 
+.mpk-hero-bg-img,
 .mpk-booking-app .mpk-hero-bg-img {
 	position: absolute;
 	right: 0;
@@ -156,11 +166,13 @@ body:has(.mpk-booking-app) {
 }
 
 @media (min-width: 768px) {
+	.mpk-hero-bg-img,
 	.mpk-booking-app .mpk-hero-bg-img {
 		display: block;
 	}
 }
 
+.mpk-hero-content,
 .mpk-booking-app .mpk-hero-content {
 	position: relative;
 	z-index: 2;
@@ -172,11 +184,13 @@ body:has(.mpk-booking-app) {
 }
 
 @media (min-width: 640px) {
+	.mpk-hero-content,
 	.mpk-booking-app .mpk-hero-content {
 		padding: 0 24px;
 	}
 }
 
+.mpk-pill-badge,
 .mpk-booking-app .mpk-pill-badge {
 	display: inline-flex;
 	align-items: center;
@@ -195,6 +209,7 @@ body:has(.mpk-booking-app) {
 	margin-bottom: 0;
 }
 
+.mpk-hero-title,
 .mpk-booking-app .mpk-hero-title {
 	font-family: var(--mpk-font-serif);
 	font-size: 44px;
@@ -219,6 +234,7 @@ body:has(.mpk-booking-app) {
 	}
 }
 
+.mpk-hero-desc,
 .mpk-booking-app .mpk-hero-desc {
 	font-size: 16px;
 	line-height: 1.6;
