@@ -106,8 +106,8 @@ class MPK_Settings {
 			'tax_rate'            => 0.08,
 			'extras'              => 45.00,
 			'service_fee'         => 25.00,
-			'child_discount_pct'  => 0,
-			'infant_discount_pct' => 100,
+			'child_discount_pct'  => 30,
+			'markup_pct'          => 0,
 
 			// Tab 3: Inclusions & Policies
 			'package_inclusions'  => "Return airport / speedboat transfers\nDaily housekeeping\nWelcome drink on arrival\n24/7 concierge support",
@@ -159,8 +159,9 @@ class MPK_Settings {
 			$settings['tax_rate']            = $tax_pct / 100.0;
 			$settings['extras']              = isset( $_POST['extras'] ) ? floatval( $_POST['extras'] ) : 45.00;
 			$settings['service_fee']         = isset( $_POST['service_fee'] ) ? floatval( $_POST['service_fee'] ) : 25.00;
-			$settings['child_discount_pct']  = isset( $_POST['child_discount_pct'] ) ? absint( $_POST['child_discount_pct'] ) : 0;
-			$settings['infant_discount_pct'] = isset( $_POST['infant_discount_pct'] ) ? absint( $_POST['infant_discount_pct'] ) : 100;
+			$settings['child_discount_pct']  = isset( $_POST['child_discount_pct'] ) ? min( 100, absint( $_POST['child_discount_pct'] ) ) : 30;
+			$settings['markup_pct']          = isset( $_POST['markup_pct'] ) ? min( 100, max( 0, round( floatval( $_POST['markup_pct'] ), 2 ) ) ) : 0;
+			unset( $settings['infant_discount_pct'] ); // Infants are always free.
 		} elseif ( 'policies' === $active_tab ) {
 			$settings['package_inclusions']  = isset( $_POST['package_inclusions'] ) ? sanitize_textarea_field( wp_unslash( $_POST['package_inclusions'] ) ) : $defaults['package_inclusions'];
 			$settings['package_excludes']    = isset( $_POST['package_excludes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['package_excludes'] ) ) : $defaults['package_excludes'];
@@ -333,17 +334,25 @@ class MPK_Settings {
 								</td>
 							</tr>
 							<tr>
-								<th scope="row"><label for="child_discount_pct"><?php esc_html_e( 'Child Discount (%)', 'maldives-packages' ); ?></label></th>
+								<th scope="row"><label for="markup_pct"><?php esc_html_e( 'Package Markup (%)', 'maldives-packages' ); ?></label></th>
 								<td>
-									<input name="child_discount_pct" type="number" step="1" min="0" max="100" id="child_discount_pct" value="<?php echo esc_attr( isset( $s['child_discount_pct'] ) ? $s['child_discount_pct'] : 0 ); ?>" style="width: 120px;" /> %
-									<p class="description"><?php esc_html_e( 'Percentage discount on base package for child guests.', 'maldives-packages' ); ?></p>
+									<input name="markup_pct" type="number" step="0.5" min="0" max="100" id="markup_pct" value="<?php echo esc_attr( isset( $s['markup_pct'] ) ? $s['markup_pct'] : 0 ); ?>" style="width: 120px;" /> %
+									<p class="description"><?php esc_html_e( 'Added to every hotel room rate. Customers see the final (marked-up) nightly rate everywhere. Example: 10% turns a $200 room into $220/night.', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
 							<tr>
-								<th scope="row"><label for="infant_discount_pct"><?php esc_html_e( 'Infant Discount (%)', 'maldives-packages' ); ?></label></th>
+								<th scope="row"><label for="child_discount_pct"><?php esc_html_e( 'Child Discount (%)', 'maldives-packages' ); ?></label></th>
 								<td>
-									<input name="infant_discount_pct" type="number" step="1" min="0" max="100" id="infant_discount_pct" value="<?php echo esc_attr( isset( $s['infant_discount_pct'] ) ? $s['infant_discount_pct'] : 100 ); ?>" style="width: 120px;" /> %
-									<p class="description"><?php esc_html_e( 'Percentage discount for infants (Default: 100% - free of charge).', 'maldives-packages' ); ?></p>
+									<input name="child_discount_pct" type="number" step="1" min="0" max="100" id="child_discount_pct" value="<?php echo esc_attr( isset( $s['child_discount_pct'] ) ? $s['child_discount_pct'] : 30 ); ?>" style="width: 120px;" /> %
+									<p class="description"><?php esc_html_e( 'Discount on one adult\'s share (half the room rate) per night. 0% = child pays same as an adult share, 100% = free.', 'maldives-packages' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'How pricing works', 'maldives-packages' ); ?></th>
+								<td>
+									<p class="description" style="margin-top:0;">
+										<?php esc_html_e( 'Room rate x nights x rooms (each room includes 2 adults) + extra adults (half room rate per night each) + children (half room rate minus child discount) + infants free. Tax is applied to that subtotal, then extra charges and service fee are added once per booking.', 'maldives-packages' ); ?>
+									</p>
 								</td>
 							</tr>
 						</table>

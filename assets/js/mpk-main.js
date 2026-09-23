@@ -370,8 +370,8 @@
 		if (!filters) return true;
 
 		// 1. Max Price filter
-		if (typeof room.price === 'number' && typeof filters.maxPrice === 'number') {
-			if (room.price > filters.maxPrice) return false;
+		if (typeof filters.maxPrice === 'number') {
+			if (roomRate(room) > filters.maxPrice) return false;
 		}
 
 		// 2. Meal filter (if any selected, room.meal must match one)
@@ -406,69 +406,75 @@
 		return true;
 	}
 
-	// Real-Time Pricing Calculation matching SummarySidebar.tsx
+	// Pricing settings from admin (safe defaults)
+	function getPricingRules() {
+		var ps = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
+		function num(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
+		return {
+			taxRate: Math.max(0, num(ps.tax_rate, 0.08)),
+			extras: Math.max(0, num(ps.extras, 45)),
+			service: Math.max(0, num(ps.service_fee, 25)),
+			childDiscount: Math.min(100, Math.max(0, num(ps.child_discount_pct, 30))),
+			markup: Math.min(100, Math.max(0, num(ps.markup_pct, 0)))
+		};
+	}
+
+	// Nightly rate customers see and pay (admin room rate + package markup)
+	function roomRate(room) {
+		if (!room) return 0;
+		var p = Math.max(0, parseFloat(room.price) || 0);
+		return Math.round(p * (1 + getPricingRules().markup / 100) * 100) / 100;
+	}
+
+	function fmtMoney(n) {
+		return (Math.round(n * 100) / 100).toFixed(2);
+	}
+
+	// Real-time pricing - keep in sync with build_trip_from_selections() in class-mpk-ajax-handler.php
+	// Rooms (2 adults incl.) + extra adults + children (infants free) -> tax -> + extras + service fee
 	function calcPricing() {
-		var base = 0;
+		var rules = getPricingRules();
+		var rooms = Math.max(1, state.rooms || 1);
+		var adults = Math.max(1, state.adults || 1);
+		var children = Math.max(0, state.children || 0);
+		var extraAdults = Math.max(0, adults - (2 * rooms));
+
+		var roomCost = 0, extraAdultCost = 0, childCost = 0, totalNights = 0;
 		for (var i = 0; i < state.selections.length; i++) {
 			var sel = state.selections[i];
 			var hotel = findHotel(sel.hotelId);
 			var room = hotel ? findRoom(hotel, sel.roomId) : null;
 			var nights = (sel.checkIn && sel.checkOut) ? diffDays(sel.checkIn, sel.checkOut) : 0;
+			totalNights += nights;
 			if (room && nights > 0) {
-				base += room.price * nights;
+				var rate = roomRate(room);
+				var share = rate / 2;
+				roomCost += rate * nights * rooms;
+				extraAdultCost += extraAdults * share * nights;
+				childCost += children * share * (1 - rules.childDiscount / 100) * nights;
 			}
 		}
 
-		var totalNights = 0;
-		for (var j = 0; j < state.selections.length; j++) {
-			var s = state.selections[j];
-			if (s.checkIn && s.checkOut) {
-				totalNights += diffDays(s.checkIn, s.checkOut);
-			}
+		var subtotal = roomCost + extraAdultCost + childCost;
+		if (subtotal <= 0) {
+			return { roomCost: 0, extraAdultCost: 0, childCost: 0, subtotal: 0, extras: 0, tax: 0, service: 0, total: 0, totalNights: totalNights, rooms: rooms, extraAdults: extraAdults };
 		}
 
-		if (base === 0) {
-			return {
-				base: 0,
-				adultPkg: 0,
-				childPkg: 0,
-				subtotal: 0,
-				extras: 0,
-				tax: 0,
-				service: 0,
-				total: 0,
-				totalNights: totalNights
-			};
-		}
-
-		var pkgSettings = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
-		var taxRate = (typeof pkgSettings.tax_rate === 'number') ? pkgSettings.tax_rate : 0.08;
-		var extrasCharge = (typeof pkgSettings.extras === 'number') ? pkgSettings.extras : 45;
-		var serviceCharge = (typeof pkgSettings.service_fee === 'number') ? pkgSettings.service_fee : 25;
-
-		var childFactor = 0.35;
-		if (typeof pkgSettings.child_discount_pct === 'number' && pkgSettings.child_discount_pct > 0) {
-			childFactor = Math.max(0, 0.55 * (1 - (pkgSettings.child_discount_pct / 100)));
-		}
-
-		var adultPkg = base * Math.max(1, state.adults) * 0.55;
-		var childPkg = base * state.children * childFactor;
-		var subtotal = adultPkg + childPkg;
-		var extras = extrasCharge;
-		var tax = subtotal * taxRate;
-		var service = serviceCharge;
-		var total = subtotal + extras + tax + service;
+		var tax = subtotal * rules.taxRate;
+		var total = subtotal + tax + rules.extras + rules.service;
 
 		return {
-			base: base,
-			adultPkg: adultPkg,
-			childPkg: childPkg,
+			roomCost: roomCost,
+			extraAdultCost: extraAdultCost,
+			childCost: childCost,
 			subtotal: subtotal,
-			extras: extras,
+			extras: rules.extras,
 			tax: tax,
-			service: service,
-			total: total,
-			totalNights: totalNights
+			service: rules.service,
+			total: Math.round(total * 100) / 100,
+			totalNights: totalNights,
+			rooms: rooms,
+			extraAdults: extraAdults
 		};
 	}
 
@@ -984,7 +990,7 @@
 						html += '</div>';
 
 						html += '<div class="mpk-room-price">';
-						html += '<span class="mpk-room-rate">$' + escHtml(room.price) + '</span>';
+						html += '<span class="mpk-room-rate">$' + fmtMoney(roomRate(room)) + '</span>';
 						html += '<span class="mpk-room-unit">per night</span>';
 						html += '</div>';
 						html += '</div>';
@@ -1030,7 +1036,7 @@
 							if (hasCheckIn && hasCheckOut && nights > 0) {
 								html += '<div class="mpk-room-stay-calc">';
 								html += '<span>🌙 ' + nights + ' ' + (nights === 1 ? 'night' : 'nights') + '</span>';
-								html += '<span class="mpk-tabular">$' + (room.price * nights) + '</span>';
+								html += '<span class="mpk-tabular">$' + fmtMoney(roomRate(room) * nights * Math.max(1, state.rooms || 1)) + '</span>';
 								html += '</div>';
 							}
 							html += '</div>'; // End room-dates
@@ -1358,7 +1364,7 @@
 						var hotel = findHotel(item.hotelId);
 						var room = hotel ? findRoom(hotel, item.roomId) : null;
 						var rNights = (item.checkIn && item.checkOut) ? diffDays(item.checkIn, item.checkOut) : 0;
-						var roomTotal = room ? (room.price * rNights) : 0;
+						var roomTotal = room ? (roomRate(room) * rNights * Math.max(1, state.rooms || 1)) : 0;
 
 						staysHtml += '<div style="background: #ffffff; border: 1px solid var(--mpk-border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">';
 						staysHtml += '<div>';
@@ -1412,7 +1418,7 @@
 						var sh = findHotel(sItems[sm].hotelId);
 						var sr = sh ? findRoom(sh, sItems[sm].roomId) : null;
 						var sn = (sItems[sm].checkIn && sItems[sm].checkOut) ? diffDays(sItems[sm].checkIn, sItems[sm].checkOut) : 0;
-						if (sr && sn > 0) sLocTotal += sr.price * sn;
+						if (sr && sn > 0) sLocTotal += roomRate(sr) * sn * pricing.rooms;
 					}
 
 					pHtml += '<div class="mpk-summary-loc-card">';
@@ -1430,8 +1436,8 @@
 						var sHotel = findHotel(sItem.hotelId);
 						var sRoom = sHotel ? findRoom(sHotel, sItem.roomId) : null;
 						var sNights = (sItem.checkIn && sItem.checkOut) ? diffDays(sItem.checkIn, sItem.checkOut) : 0;
-						var sPrice = sRoom ? sRoom.price : 0;
-						var sItemTotal = sPrice * sNights;
+						var sPrice = roomRate(sRoom);
+						var sItemTotal = sPrice * sNights * pricing.rooms;
 
 						pHtml += '<div class="mpk-summary-room-row">';
 						pHtml += '<div class="mpk-summary-room-meta">';
@@ -1439,7 +1445,7 @@
 						pHtml += '<span class="mpk-summary-sep">·</span>';
 						pHtml += '<span>' + escHtml(sRoom ? sRoom.name : '') + '</span>';
 						pHtml += '<span class="mpk-summary-sep">·</span>';
-						pHtml += '<span>' + sNights + ' ' + (sNights === 1 ? 'night' : 'nights') + ' × $' + sPrice + '</span>';
+						pHtml += '<span>' + sNights + ' ' + (sNights === 1 ? 'night' : 'nights') + ' × $' + fmtMoney(sPrice) + (pricing.rooms > 1 ? ' × ' + pricing.rooms + ' rooms' : '') + '</span>';
 						pHtml += '</div>';
 						pHtml += '<span class="mpk-summary-room-total tabular-nums">$' + sItemTotal.toFixed(2) + '</span>';
 						pHtml += '</div>';
@@ -1447,6 +1453,26 @@
 					pHtml += '</div>'; // End mpk-summary-room-items
 					pHtml += '</div>'; // End mpk-summary-loc-card
 				}
+			}
+
+			// Transparent price breakdown
+			if (pricing.subtotal > 0) {
+				var bRows = [['Rooms', pricing.roomCost]];
+				if (pricing.extraAdultCost > 0) bRows.push(['Extra adults (' + pricing.extraAdults + ')', pricing.extraAdultCost]);
+				if (pricing.childCost > 0) bRows.push(['Children (' + state.children + ')', pricing.childCost]);
+				if (state.infants > 0) bRows.push(['Infants (' + state.infants + ')', null]);
+				bRows.push(['Tax', pricing.tax]);
+				if (pricing.extras > 0) bRows.push(['Extra charges', pricing.extras]);
+				if (pricing.service > 0) bRows.push(['Service fee', pricing.service]);
+
+				pHtml += '<div class="mpk-summary-room-items mpk-summary-breakdown" style="margin: 4px 0 12px;">';
+				for (var bi = 0; bi < bRows.length; bi++) {
+					pHtml += '<div class="mpk-summary-room-row">';
+					pHtml += '<div class="mpk-summary-room-meta"><span>' + escHtml(bRows[bi][0]) + '</span></div>';
+					pHtml += '<span class="mpk-summary-room-total tabular-nums">' + (bRows[bi][1] === null ? 'Free' : '$' + fmtMoney(bRows[bi][1])) + '</span>';
+					pHtml += '</div>';
+				}
+				pHtml += '</div>';
 			}
 
 			// Clean Grand Total Banner matching Step4Review.tsx

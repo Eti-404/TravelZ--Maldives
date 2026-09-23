@@ -300,7 +300,7 @@ class MPK_Ajax_Handler {
 
 		// 4.1 Rebuild trip details & price server-side (never trust client totals / names)
 		$raw_selections = isset( $_POST['selections'] ) ? json_decode( wp_unslash( $_POST['selections'] ), true ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized per field below.
-		$trip           = self::build_trip_from_selections( $raw_selections, $adults, $children );
+		$trip           = self::build_trip_from_selections( $raw_selections, $adults, $children, $rooms_count );
 		if ( is_wp_error( $trip ) ) {
 			wp_send_json_error(
 				array(
@@ -481,21 +481,59 @@ class MPK_Ajax_Handler {
 	}
 
 	/**
+	 * Pricing rules from Settings with safe defaults (shared by booking validation).
+	 *
+	 * @return array{tax_rate:float,extras:float,service_fee:float,child_discount_pct:float,markup_pct:float}
+	 */
+	public static function get_pricing_rules() {
+		$s   = MPK_Data_Manager::get_settings();
+		$num = function ( $key, $default ) use ( $s ) {
+			return isset( $s[ $key ] ) && is_numeric( $s[ $key ] ) ? (float) $s[ $key ] : $default;
+		};
+		return array(
+			'tax_rate'           => max( 0, $num( 'tax_rate', 0.08 ) ),
+			'extras'             => max( 0, $num( 'extras', 45.0 ) ),
+			'service_fee'        => max( 0, $num( 'service_fee', 25.0 ) ),
+			'child_discount_pct' => min( 100, max( 0, $num( 'child_discount_pct', 30 ) ) ),
+			'markup_pct'         => min( 100, max( 0, $num( 'markup_pct', 0 ) ) ),
+		);
+	}
+
+	/**
+	 * Room rate shown to and charged from customers (admin rate + package markup).
+	 *
+	 * @param mixed $price      Admin room rate per night.
+	 * @param float $markup_pct Markup percentage.
+	 * @return float
+	 */
+	public static function effective_rate( $price, $markup_pct ) {
+		return round( max( 0, (float) $price ) * ( 1 + ( (float) $markup_pct / 100 ) ), 2 );
+	}
+
+	/**
 	 * Validate client room selections against stored hotel data and compute the
 	 * authoritative booking summary + grand total (mirrors calcPricing() in mpk-main.js).
 	 *
 	 * @param mixed $selections Decoded selections array from the request.
 	 * @param int   $adults     Adult count.
 	 * @param int   $children   Children count.
+	 * @param int   $rooms      Rooms booked per stay.
 	 * @return array|WP_Error
 	 */
-	private static function build_trip_from_selections( $selections, $adults, $children ) {
+	private static function build_trip_from_selections( $selections, $adults, $children, $rooms = 1 ) {
 		if ( ! is_array( $selections ) || empty( $selections ) || count( $selections ) > 20 ) {
 			return new WP_Error( 'mpk_invalid_selection', __( 'Please select at least one room with valid dates.', 'maldives-packages' ) );
 		}
 
 		$today       = current_time( 'Y-m-d' );
-		$base        = 0.0;
+		$rules       = self::get_pricing_rules();
+		$rooms       = max( 1, (int) $rooms );
+		$adults      = max( 1, (int) $adults );
+		$children    = max( 0, (int) $children );
+		$extra_adult = max( 0, $adults - ( 2 * $rooms ) ); // Each room includes 2 adults.
+		$room_cost   = 0.0;
+		$extra_cost  = 0.0;
+		$child_cost  = 0.0;
 		$hotel_names = array();
 		$room_names  = array();
 		$loc_names   = array();
@@ -540,8 +578,12 @@ class MPK_Ajax_Handler {
 				return new WP_Error( 'mpk_invalid_dates', __( 'Check-out must be after check-in (max 90 nights).', 'maldives-packages' ) );
 			}
 
-			$price = isset( $room['price'] ) ? max( 0, (float) $room['price'] ) : 0.0;
-			$base += $price * $nights;
+			$price = self::effective_rate( isset( $room['price'] ) ? $room['price'] : 0, $rules['markup_pct'] );
+			$share = $price / 2; // One adult's share of the room rate.
+
+			$room_cost  += $price * $nights * $rooms;
+			$extra_cost += $extra_adult * $share * $nights;
+			$child_cost += $children * $share * ( 1 - ( $rules['child_discount_pct'] / 100 ) ) * $nights;
 
 			if ( ! in_array( $hotel['name'], $hotel_names, true ) ) {
 				$hotel_names[] = $hotel['name'];
@@ -564,6 +606,7 @@ class MPK_Ajax_Handler {
 				'check_in'  => $in,
 				'check_out' => $out,
 				'nights'    => $nights,
+				'rooms'     => $rooms,
 				'price'     => $price,
 			);
 
@@ -576,21 +619,11 @@ class MPK_Ajax_Handler {
 		}
 
 		// Pricing formula - keep in sync with calcPricing() in assets/js/mpk-main.js.
-		$total = 0.0;
-		if ( $base > 0 ) {
-			$settings = MPK_Data_Manager::get_settings();
-			$tax_rate = isset( $settings['tax_rate'] ) && is_numeric( $settings['tax_rate'] ) ? (float) $settings['tax_rate'] : 0.08;
-			$extras   = isset( $settings['extras'] ) && is_numeric( $settings['extras'] ) ? (float) $settings['extras'] : 45.0;
-			$service  = isset( $settings['service_fee'] ) && is_numeric( $settings['service_fee'] ) ? (float) $settings['service_fee'] : 25.0;
-
-			$child_factor = 0.35;
-			$child_disc   = isset( $settings['child_discount_pct'] ) && is_numeric( $settings['child_discount_pct'] ) ? (float) $settings['child_discount_pct'] : 0;
-			if ( $child_disc > 0 ) {
-				$child_factor = max( 0, 0.55 * ( 1 - ( $child_disc / 100 ) ) );
-			}
-
-			$subtotal = ( $base * max( 1, $adults ) * 0.55 ) + ( $base * $children * $child_factor );
-			$total    = $subtotal + $extras + ( $subtotal * $tax_rate ) + $service;
+		// Rooms (2 adults incl.) + extra adults + children (infants free) -> tax -> + extras + service fee.
+		$subtotal = $room_cost + $extra_cost + $child_cost;
+		$total    = 0.0;
+		if ( $subtotal > 0 ) {
+			$total = $subtotal + ( $subtotal * $rules['tax_rate'] ) + $rules['extras'] + $rules['service_fee'];
 		}
 
 		return array(
