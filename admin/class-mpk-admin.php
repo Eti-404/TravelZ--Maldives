@@ -43,7 +43,7 @@ class MPK_Admin {
 		add_action( 'admin_menu', array( $this, 'register_unified_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'wp_ajax_mpk_update_booking_status', array( $this, 'ajax_update_booking_status' ) );
-		add_action( 'wp_ajax_mpk_delete_booking', array( $this, 'ajax_delete_booking' ) );
+		// Note: wp_ajax_mpk_delete_booking is registered once in MPK_Ajax_Handler.
 		add_action( 'admin_init', array( $this, 'handle_admin_redirects' ) );
 		add_filter( 'parent_file', array( $this, 'filter_parent_file' ) );
 		add_filter( 'submenu_file', array( $this, 'filter_submenu_file' ) );

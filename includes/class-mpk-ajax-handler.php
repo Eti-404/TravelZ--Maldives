@@ -25,6 +25,48 @@ class MPK_Ajax_Handler {
 	}
 
 	/**
+	 * Allowed payment methods ("card" is disabled in the UI until a gateway exists).
+	 *
+	 * @return string[]
+	 */
+	public static function get_allowed_payment_methods() {
+		return (array) apply_filters( 'mpk_allowed_payment_methods', array( 'office', 'bank' ) );
+	}
+
+	/**
+	 * Simple per-IP rate limiter backed by transients.
+	 *
+	 * @return bool True if the request is allowed.
+	 */
+	private static function check_rate_limit() {
+		$max    = (int) apply_filters( 'mpk_booking_rate_limit_max', 5 );
+		$window = (int) apply_filters( 'mpk_booking_rate_limit_window', 15 * MINUTE_IN_SECONDS );
+		if ( $max <= 0 ) {
+			return true;
+		}
+
+		// REMOTE_ADDR only - forwarded headers are client-controlled and spoofable.
+		$ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		$key = 'mpk_rl_' . md5( $ip );
+
+		$data = get_transient( $key );
+		if ( ! is_array( $data ) || empty( $data['start'] ) || ( time() - (int) $data['start'] ) > $window ) {
+			$data = array(
+				'start' => time(),
+				'count' => 0,
+			);
+		}
+
+		if ( (int) $data['count'] >= $max ) {
+			return false;
+		}
+
+		$data['count'] = (int) $data['count'] + 1;
+		set_transient( $key, $data, $window );
+		return true;
+	}
+
+	/**
 	 * Sub-folder (inside uploads) where passport copies are stored.
 	 */
 	const PASSPORT_SUBDIR = 'mpk-passports';
@@ -177,6 +219,22 @@ class MPK_Ajax_Handler {
 			);
 		}
 
+		// 1.1 Honeypot: real users never fill the hidden "website" field
+		if ( ! empty( $_POST['mpk_website'] ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Booking could not be submitted. Please try again.', 'maldives-packages' ) ),
+				400
+			);
+		}
+
+		// 1.2 Rate limit per IP (default: 5 submissions / 15 minutes)
+		if ( ! self::check_rate_limit() ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Too many booking attempts. Please wait a few minutes and try again.', 'maldives-packages' ) ),
+				429
+			);
+		}
+
 		// 2. Extract and sanitize lead traveler data
 		$lead_name     = isset( $_POST['lead_name'] ) ? sanitize_text_field( wp_unslash( $_POST['lead_name'] ) ) : '';
 		$lead_email    = isset( $_POST['lead_email'] ) ? sanitize_email( wp_unslash( $_POST['lead_email'] ) ) : '';
@@ -207,7 +265,8 @@ class MPK_Ajax_Handler {
 			);
 		}
 
-		if ( empty( $payment_method ) ) {
+		$payment_method = strtolower( $payment_method );
+		if ( ! in_array( $payment_method, self::get_allowed_payment_methods(), true ) ) {
 			wp_send_json_error(
 				array(
 					'field'   => 'payment_method',
@@ -243,7 +302,6 @@ class MPK_Ajax_Handler {
 		$check_out         = $trip['check_out'];
 		$grand_total       = $trip['grand_total'];
 
-		$reference_id = isset( $_POST['reference_id'] ) ? sanitize_text_field( wp_unslash( $_POST['reference_id'] ) ) : '';
 
 		// 5. Handle Secure Passport Copy Upload
 		$passport_file_url = '';
@@ -339,7 +397,6 @@ class MPK_Ajax_Handler {
 
 		// 5.1 Build booking record payload
 		$booking_data = array(
-			'reference_id'      => $reference_id,
 			'lead_name'         => $lead_name,
 			'lead_email'        => $lead_email,
 			'lead_phone'        => $lead_phone,
@@ -366,9 +423,15 @@ class MPK_Ajax_Handler {
 		$result = MPK_Booking_Manager::create_booking( $booking_data );
 
 		if ( is_wp_error( $result ) ) {
+			error_log( '[MPK] Booking insert failed: ' . $result->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+			// Remove orphaned passport upload for the failed booking.
+			$orphan = self::resolve_passport_path( $passport_file_url );
+			if ( $orphan ) {
+				wp_delete_file( $orphan );
+			}
 			wp_send_json_error(
 				array(
-					'message' => $result->get_error_message(),
+					'message' => __( 'We could not save your booking right now. Please try again or contact us.', 'maldives-packages' ),
 				),
 				500
 			);
@@ -537,9 +600,9 @@ class MPK_Ajax_Handler {
 			);
 		}
 
-		// 2. Nonce verification (supports mpk_admin_nonce)
+		// 2. Nonce verification (admin nonce only)
 		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, 'mpk_admin_nonce' ) && ! wp_verify_nonce( $nonce, 'mpk_booking_nonce' ) ) {
+		if ( ! wp_verify_nonce( $nonce, 'mpk_admin_nonce' ) ) {
 			wp_send_json_error(
 				array( 'message' => __( 'Security verification failed. Please refresh the page and try again.', 'maldives-packages' ) ),
 				403

@@ -12,6 +12,21 @@
 (function () {
 	'use strict';
 
+	// Escape dynamic text before inserting into innerHTML (XSS hardening)
+	var escDecoder = document.createElement('textarea');
+	function escHtml(str) {
+		if (str === null || str === undefined) return '';
+		// Decode existing entities first (WP stores term names as "&amp;") to avoid double-escaping.
+		// <textarea> content is RCDATA, so this never parses or executes markup.
+		escDecoder.innerHTML = String(str);
+		return escDecoder.value
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
 	// Default fallback dataset matching Mpackages/src/lib/booking-data.ts
 	var DEFAULT_LOCATIONS = [
 		{
@@ -893,12 +908,12 @@
 			html += '<div class="mpk-location-section">';
 			html += '<div class="mpk-location-heading">';
 			html += '<div class="mpk-heading-bar"></div>';
-			html += '<h3>' + loc.name + ' Hotels</h3>';
+			html += '<h3>' + escHtml(loc.name) + ' Hotels</h3>';
 			html += '</div>';
 
 			if (hotelsForLoc.length === 0) {
 				html += '<div style="background: rgba(255, 255, 255, 0.6); border: 2px dashed var(--mpk-border); border-radius: var(--mpk-radius-lg); padding: 36px 20px; text-align: center;">';
-				html += '<p style="font-size: 14px; color: var(--mpk-text-muted); margin: 0 0 12px;">No hotels match your filters in ' + loc.name + '.</p>';
+				html += '<p style="font-size: 14px; color: var(--mpk-text-muted); margin: 0 0 12px;">No hotels match your filters in ' + escHtml(loc.name) + '.</p>';
 				html += '<button type="button" class="mpk-btn mpk-btn-outline mpk-btn-reset-filters" style="font-size: 13px; padding: 8px 16px;">Clear Filters</button>';
 				html += '</div>';
 			} else {
@@ -906,7 +921,7 @@
 					var hotel = hotelsForLoc[hIdx];
 					html += '<article class="mpk-hotel-card">';
 					html += '<div class="mpk-hotel-media">';
-					html += '<img src="' + resolveImageUrl(hotel.image) + '" alt="' + hotel.name + '" loading="lazy" />';
+					html += '<img src="' + escHtml(resolveImageUrl(hotel.image)) + '" alt="' + escHtml(hotel.name) + '" loading="lazy" />';
 					html += '</div>';
 
 					html += '<div class="mpk-hotel-body">';
@@ -918,22 +933,22 @@
 						html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="#facc15" stroke="#facc15" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
 					}
 					html += '</div>';
-					html += '<h4 class="mpk-hotel-name">' + hotel.name + '</h4>';
+					html += '<h4 class="mpk-hotel-name">' + escHtml(hotel.name) + '</h4>';
 					html += '<p class="mpk-hotel-area">';
-					html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ' + hotel.area;
+					html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ' + escHtml(hotel.area);
 					html += '</p>';
 					html += '</div>';
 
 					html += '<div class="mpk-review-block-score">';
-					html += '<span class="mpk-review-badge">' + hotel.review + '</span>';
-					html += '<span class="mpk-review-label">' + hotel.reviewLabel + '</span>';
+					html += '<span class="mpk-review-badge">' + escHtml(hotel.review) + '</span>';
+					html += '<span class="mpk-review-label">' + escHtml(hotel.reviewLabel) + '</span>';
 					html += '</div>';
 					html += '</div>';
 
 					// Amenities pills
 					html += '<div class="mpk-amenities-pills">';
 					for (var a = 0; a < (hotel.amenities || []).length; a++) {
-						html += '<span class="mpk-pill">' + hotel.amenities[a] + '</span>';
+						html += '<span class="mpk-pill">' + escHtml(hotel.amenities[a]) + '</span>';
 					}
 					html += '</div>';
 					html += '</div>';
@@ -954,8 +969,8 @@
 						var checkInLabel = hasCheckIn ? formatDate(sel.checkIn, true) : 'Pick a date';
 						var checkOutLabel = hasCheckOut ? formatDate(sel.checkOut, true) : 'Pick a date';
 
-						html += '<div class="mpk-room-item ' + (isSel ? 'selected' : '') + '" data-hotel-id="' + hotel.id + '" data-room-id="' + room.id + '">';
-						html += '<div class="mpk-room-main" data-action="toggle-room" data-hotel-id="' + hotel.id + '" data-room-id="' + room.id + '" data-location-id="' + hotel.location + '">';
+						html += '<div class="mpk-room-item ' + (isSel ? 'selected' : '') + '" data-hotel-id="' + escHtml(hotel.id) + '" data-room-id="' + escHtml(room.id) + '">';
+						html += '<div class="mpk-room-main" data-action="toggle-room" data-hotel-id="' + escHtml(hotel.id) + '" data-room-id="' + escHtml(room.id) + '" data-location-id="' + escHtml(hotel.location) + '">';
 						html += '<div class="mpk-room-left">';
 						html += '<div class="mpk-room-checkbox">';
 						if (isSel) {
@@ -963,13 +978,13 @@
 						}
 						html += '</div>';
 						html += '<div>';
-						html += '<p class="mpk-room-title">' + room.name + '</p>';
-						html += '<p class="mpk-room-meal">' + room.meal + '</p>';
+						html += '<p class="mpk-room-title">' + escHtml(room.name) + '</p>';
+						html += '<p class="mpk-room-meal">' + escHtml(room.meal) + '</p>';
 						html += '</div>';
 						html += '</div>';
 
 						html += '<div class="mpk-room-price">';
-						html += '<span class="mpk-room-rate">$' + room.price + '</span>';
+						html += '<span class="mpk-room-rate">$' + escHtml(room.price) + '</span>';
 						html += '<span class="mpk-room-unit">per night</span>';
 						html += '</div>';
 						html += '</div>';
@@ -990,7 +1005,7 @@
 							html += '<span class="mpk-date-btn-label">Check-in</span>';
 							html += '<span class="mpk-date-btn-val ' + (hasCheckIn ? 'has-date' : 'placeholder') + '">' + checkInLabel + '</span>';
 							html += '</div>';
-							html += '<input type="date" class="mpk-date-native-overlay mpk-checkin-input" data-hotel-id="' + hotel.id + '" data-room-id="' + room.id + '" value="' + (sel.checkIn || '') + '" min="' + minDate + '" title="Choose check-in date" />';
+							html += '<input type="date" class="mpk-date-native-overlay mpk-checkin-input" data-hotel-id="' + escHtml(hotel.id) + '" data-room-id="' + escHtml(room.id) + '" value="' + (sel.checkIn || '') + '" min="' + minDate + '" title="Choose check-in date" />';
 							html += '</div>';
 							html += '</div>';
 
@@ -1002,7 +1017,7 @@
 							html += '<span class="mpk-date-btn-label">Check-out</span>';
 							html += '<span class="mpk-date-btn-val ' + (hasCheckOut ? 'has-date' : 'placeholder') + '">' + checkOutLabel + '</span>';
 							html += '</div>';
-							html += '<input type="date" class="mpk-date-native-overlay mpk-checkout-input" data-hotel-id="' + hotel.id + '" data-room-id="' + room.id + '" value="' + (sel.checkOut || '') + '" min="' + checkOutMin + '" title="Choose check-out date" />';
+							html += '<input type="date" class="mpk-date-native-overlay mpk-checkout-input" data-hotel-id="' + escHtml(hotel.id) + '" data-room-id="' + escHtml(room.id) + '" value="' + (sel.checkOut || '') + '" min="' + checkOutMin + '" title="Choose check-out date" />';
 							html += '</div>';
 							html += '</div>';
 
@@ -1334,7 +1349,7 @@
 
 					staysHtml += '<div style="border: 1px solid var(--mpk-border); border-radius: 16px; padding: 16px 20px; margin-bottom: 14px; background: #f8fafc;">';
 					staysHtml += '<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">';
-					staysHtml += '<span style="font-weight: 600; font-size: 14px; color: var(--mpk-text); display: flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ' + (loc ? loc.name : locId) + '</span>';
+					staysHtml += '<span style="font-weight: 600; font-size: 14px; color: var(--mpk-text); display: flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ' + escHtml(loc ? loc.name : locId) + '</span>';
 					staysHtml += '<span style="font-size: 12px; color: var(--mpk-text-muted);">' + locNights + ' nights</span>';
 					staysHtml += '</div>';
 
@@ -1347,9 +1362,9 @@
 
 						staysHtml += '<div style="background: #ffffff; border: 1px solid var(--mpk-border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">';
 						staysHtml += '<div>';
-						staysHtml += '<p style="margin: 0; font-weight: 600; font-size: 14px; color: var(--mpk-text);">' + (hotel ? hotel.name : '') + '</p>';
+						staysHtml += '<p style="margin: 0; font-weight: 600; font-size: 14px; color: var(--mpk-text);">' + escHtml(hotel ? hotel.name : '') + '</p>';
 						staysHtml += '<p style="margin: 2px 0 0; font-size: 12px; color: var(--mpk-text-muted);">';
-						staysHtml += (room ? room.name : '') + ' · ' + (room ? room.meal : '') + ' · ' + rNights + ' ' + (rNights === 1 ? 'night' : 'nights');
+						staysHtml += escHtml(room ? room.name : '') + ' · ' + escHtml(room ? room.meal : '') + ' · ' + rNights + ' ' + (rNights === 1 ? 'night' : 'nights');
 						staysHtml += '</p>';
 						if (item.checkIn && item.checkOut) {
 							staysHtml += '<p style="margin: 3px 0 0; font-size: 11px; color: var(--mpk-text-muted);">';
@@ -1404,7 +1419,7 @@
 					pHtml += '<div class="mpk-summary-loc-header">';
 					pHtml += '<div class="mpk-summary-loc-title">';
 					pHtml += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';
-					pHtml += '<span>' + (sLoc ? sLoc.name : sLocId) + '</span>';
+					pHtml += '<span>' + escHtml(sLoc ? sLoc.name : sLocId) + '</span>';
 					pHtml += '</div>';
 					pHtml += '<span class="mpk-summary-loc-price tabular-nums">$' + sLocTotal.toFixed(2) + '</span>';
 					pHtml += '</div>';
@@ -1420,9 +1435,9 @@
 
 						pHtml += '<div class="mpk-summary-room-row">';
 						pHtml += '<div class="mpk-summary-room-meta">';
-						pHtml += '<span class="mpk-summary-hotel-name">' + (sHotel ? sHotel.name : '') + '</span>';
+						pHtml += '<span class="mpk-summary-hotel-name">' + escHtml(sHotel ? sHotel.name : '') + '</span>';
 						pHtml += '<span class="mpk-summary-sep">·</span>';
-						pHtml += '<span>' + (sRoom ? sRoom.name : '') + '</span>';
+						pHtml += '<span>' + escHtml(sRoom ? sRoom.name : '') + '</span>';
 						pHtml += '<span class="mpk-summary-sep">·</span>';
 						pHtml += '<span>' + sNights + ' ' + (sNights === 1 ? 'night' : 'nights') + ' × $' + sPrice + '</span>';
 						pHtml += '</div>';
@@ -1501,14 +1516,14 @@
 					];
 
 					incHtml += '<div style="margin-bottom: 20px; border: 1px solid var(--mpk-border); border-radius: 14px; padding: 16px; background: #f8fafc;">';
-					incHtml += '<h5 style="font-size: 15px; font-weight: 600; margin: 0 0 12px; color: var(--mpk-text);">' + hObj.name + '</h5>';
+					incHtml += '<h5 style="font-size: 15px; font-weight: 600; margin: 0 0 12px; color: var(--mpk-text);">' + escHtml(hObj.name) + '</h5>';
 					incHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
 
 					incHtml += '<div>';
 					incHtml += '<p style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #059669; margin: 0 0 8px;">Includes</p>';
 					incHtml += '<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--mpk-text-muted); line-height: 1.6;">';
 					for (var inc = 0; inc < includesList.length; inc++) {
-						incHtml += '<li>' + includesList[inc] + '</li>';
+						incHtml += '<li>' + escHtml(includesList[inc]) + '</li>';
 					}
 					incHtml += '</ul>';
 					incHtml += '</div>';
@@ -1517,7 +1532,7 @@
 					incHtml += '<p style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #dc2626; margin: 0 0 8px;">Excludes</p>';
 					incHtml += '<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--mpk-text-muted); line-height: 1.6;">';
 					for (var exc = 0; exc < excludesList.length; exc++) {
-						incHtml += '<li>' + excludesList[exc] + '</li>';
+						incHtml += '<li>' + escHtml(excludesList[exc]) + '</li>';
 					}
 					incHtml += '</ul>';
 					incHtml += '</div>';
@@ -1597,7 +1612,7 @@
 				instHtml += '<p style="margin: 0;"><strong>Account Name:</strong> Maldives Luxury Travel Pvt Ltd</p>';
 				instHtml += '<p style="margin: 0;"><strong>Account Number:</strong> 7730-000123-456</p>';
 				instHtml += '<p style="margin: 0;"><strong>SWIFT:</strong> MALBMVMV</p>';
-				instHtml += '<p style="margin: 8px 0 0; font-size: 12px; color: var(--mpk-text-muted); font-style: italic;">Please include your booking reference (' + state.confirmationCode + ') in the transfer note.</p>';
+				instHtml += '<p style="margin: 8px 0 0; font-size: 12px; color: var(--mpk-text-muted); font-style: italic;">Please include your booking reference (' + escHtml(state.confirmationCode) + ') in the transfer note.</p>';
 				instHtml += '</div>';
 			} else {
 				instHtml = '<p style="font-style: italic; color: var(--mpk-text-muted);">No payment method selected.</p>';
@@ -1665,6 +1680,8 @@
 		}
 		formData.append('special_requests', (state.form && state.form.request) ? state.form.request.trim() : '');
 		formData.append('payment_method', state.paymentMethod || '');
+		var hpField = document.getElementById('mpk-hp-website');
+		formData.append('mpk_website', hpField ? hpField.value : '');
 
 		// Aggregate locations
 		var locNames = [];

@@ -176,7 +176,8 @@ class MPK_Booking_Manager {
 			self::create_table();
 		}
 
-		$reference_id = ! empty( $data['reference_id'] ) ? sanitize_text_field( $data['reference_id'] ) : self::generate_reference_id();
+		// Reference IDs are always generated server-side (never accepted from the client).
+		$reference_id = self::generate_reference_id();
 
 		$insert_data = array(
 			'reference_id'      => $reference_id,
@@ -237,7 +238,15 @@ class MPK_Booking_Manager {
 
 		$result = $wpdb->insert( $table_name, $insert_data, $formats );
 
+		// Rare race: another request took the same reference in the meantime - retry once.
+		if ( false === $result && false !== stripos( (string) $wpdb->last_error, 'duplicate' ) ) {
+			$reference_id                = self::generate_reference_id();
+			$insert_data['reference_id'] = $reference_id;
+			$result                      = $wpdb->insert( $table_name, $insert_data, $formats );
+		}
+
 		if ( false === $result ) {
+			// Detailed DB error is for server logs only; callers must not show it to visitors.
 			return new WP_Error( 'db_insert_error', $wpdb->last_error ? $wpdb->last_error : __( 'Could not save booking to database.', 'maldives-packages' ) );
 		}
 
