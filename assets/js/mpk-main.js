@@ -250,6 +250,7 @@
 			meals: [],
 			beds: [],
 			rooms: [],
+			minPrice: 50,
 			maxPrice: 1000
 		},
 		confirmationCode: ''
@@ -369,9 +370,12 @@
 		if (!room) return false;
 		if (!filters) return true;
 
-		// 1. Max Price filter
+		// 1. Price range filter (min & max per night)
 		if (typeof filters.maxPrice === 'number') {
 			if (roomRate(room) > filters.maxPrice) return false;
+		}
+		if (typeof filters.minPrice === 'number') {
+			if (roomRate(room) < filters.minPrice) return false;
 		}
 
 		// 2. Meal filter (if any selected, room.meal must match one)
@@ -871,14 +875,26 @@
 		}
 
 		var priceSlider = document.getElementById('mpk-price-range');
-		var priceLabel = document.getElementById('mpk-price-max-label');
+		var priceSliderMin = document.getElementById('mpk-price-range-min');
 		if (priceSlider) {
 			priceSlider.addEventListener('input', function () {
-				state.filters.maxPrice = parseInt(this.value, 10);
-				if (priceLabel) priceLabel.textContent = '$' + state.filters.maxPrice;
+				var v = parseInt(this.value, 10);
+				if (priceSliderMin && v < parseInt(priceSliderMin.value, 10)) { v = parseInt(priceSliderMin.value, 10); this.value = v; }
+				state.filters.maxPrice = v;
+				syncPriceRange();
 				renderHotels();
 			});
 		}
+		if (priceSliderMin) {
+			priceSliderMin.addEventListener('input', function () {
+				var v = parseInt(this.value, 10);
+				if (priceSlider && v > parseInt(priceSlider.value, 10)) { v = parseInt(priceSlider.value, 10); this.value = v; }
+				state.filters.minPrice = v;
+				syncPriceRange();
+				renderHotels();
+			});
+		}
+		syncPriceRange();
 
 		// Accordion collapse toggles for filter sections
 		var filterAccordionTitles = document.querySelectorAll('.mpk-filter-accordion-item .mpk-filter-title');
@@ -899,6 +915,7 @@
 		state.filters.beds = [];
 		state.filters.rooms = [];
 		state.filters.maxPrice = 1000;
+		state.filters.minPrice = 50;
 
 		var searchInput = document.getElementById('mpk-hotel-search');
 		if (searchInput) searchInput.value = '';
@@ -909,11 +926,34 @@
 		}
 
 		var priceSlider = document.getElementById('mpk-price-range');
-		var priceLabel = document.getElementById('mpk-price-max-label');
+		var priceSliderMin = document.getElementById('mpk-price-range-min');
 		if (priceSlider) priceSlider.value = '1000';
-		if (priceLabel) priceLabel.textContent = '$1000';
+		if (priceSliderMin) priceSliderMin.value = '50';
+		syncPriceRange();
 
 		renderHotels();
+	}
+
+	// Dual-thumb price range: fill between thumbs + labels (reference slider look)
+	function syncPriceRange() {
+		var maxEl = document.getElementById('mpk-price-range');
+		var minEl = document.getElementById('mpk-price-range-min');
+		var fill = document.getElementById('mpk-price-range-fill');
+		var minLbl = document.getElementById('mpk-price-min-label');
+		var maxLbl = document.getElementById('mpk-price-max-label');
+		if (!maxEl) return;
+		var lo = parseFloat(maxEl.min) || 0;
+		var hi = parseFloat(maxEl.max) || 1000;
+		var vMin = minEl ? parseFloat(minEl.value) : lo;
+		var vMax = parseFloat(maxEl.value);
+		if (fill) {
+			fill.style.left = ((vMin - lo) / (hi - lo) * 100) + '%';
+			fill.style.right = (100 - (vMax - lo) / (hi - lo) * 100) + '%';
+		}
+		if (minLbl) minLbl.textContent = '$' + vMin;
+		if (maxLbl) maxLbl.textContent = '$' + vMax;
+		// Keep the min thumb reachable when both thumbs meet at the top end
+		if (minEl) minEl.style.zIndex = (vMin >= hi - 10) ? '4' : '3';
 	}
 
 	function renderHotels() {

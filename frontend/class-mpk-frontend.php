@@ -519,10 +519,14 @@ class MPK_Frontend {
 									</div>
 									<div class="mpk-filter-accordion-content">
 										<div class="mpk-price-slider-wrap">
-											<input type="range" id="mpk-price-range" class="mpk-price-slider" min="50" max="1000" step="10" value="1000" />
+											<div class="mpk-range" id="mpk-price-range-wrap">
+												<div class="mpk-range-track"><div class="mpk-range-fill" id="mpk-price-range-fill"></div></div>
+												<input type="range" id="mpk-price-range-min" class="mpk-range-input" min="50" max="1000" step="10" value="50" aria-label="Minimum price per night" />
+												<input type="range" id="mpk-price-range" class="mpk-range-input" min="50" max="1000" step="10" value="1000" aria-label="Maximum price per night" />
+											</div>
 											<div class="mpk-price-range-label">
-												<span class="mpk-price-pill">$50</span>
-												<span style="color: var(--mpk-text-muted);">per night</span>
+												<span class="mpk-price-pill" id="mpk-price-min-label">$50</span>
+												<span class="mpk-price-unit">per night</span>
 												<span class="mpk-price-pill" id="mpk-price-max-label">$1000</span>
 											</div>
 										</div>
