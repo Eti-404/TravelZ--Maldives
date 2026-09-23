@@ -123,6 +123,7 @@ class MPK_Settings {
 			'office_address'      => 'Hulhumale Oceanfront Drive, Male Atoll, Maldives',
 			'support_email'       => 'concierge@example.com',
 			'support_phone'       => '+00 123 456789',
+			'office_hours'        => 'Sun–Thu, 9:00 AM – 6:00 PM',
 		);
 	}
 
@@ -188,6 +189,7 @@ class MPK_Settings {
 			$settings['office_address']    = isset( $_POST['office_address'] ) ? sanitize_textarea_field( wp_unslash( $_POST['office_address'] ) ) : $defaults['office_address'];
 			$settings['support_email']     = isset( $_POST['support_email'] ) ? sanitize_email( wp_unslash( $_POST['support_email'] ) ) : $defaults['support_email'];
 			$settings['support_phone']     = isset( $_POST['support_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['support_phone'] ) ) : $defaults['support_phone'];
+			$settings['office_hours']      = isset( $_POST['office_hours'] ) ? sanitize_text_field( wp_unslash( $_POST['office_hours'] ) ) : $defaults['office_hours'];
 		}
 
 		update_option( 'mpk_settings', $settings );
@@ -443,6 +445,13 @@ class MPK_Settings {
 								<td>
 									<input name="support_phone" type="text" id="support_phone" value="<?php echo esc_attr( $s['support_phone'] ); ?>" class="regular-text" />
 									<p class="description"><?php esc_html_e( '24/7 emergency traveler hotline.', 'maldives-packages' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="office_hours"><?php esc_html_e( 'Office Hours', 'maldives-packages' ); ?></label></th>
+								<td>
+									<input name="office_hours" type="text" id="office_hours" value="<?php echo esc_attr( isset( $s['office_hours'] ) ? $s['office_hours'] : $defaults['office_hours'] ); ?>" class="regular-text" />
+									<p class="description"><?php esc_html_e( 'Shown on the booking confirmation for office-visit payments. Leave empty to hide.', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
 						</table>

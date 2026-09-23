@@ -214,6 +214,86 @@ class MPK_Ajax_Handler {
 	}
 
 	/**
+	 * Count bookings whose passport file still lives outside the private folder.
+	 *
+	 * @return int
+	 */
+	public static function count_legacy_passports() {
+		global $wpdb;
+		$table = MPK_Booking_Manager::get_table_name();
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE passport_file_url <> '' AND passport_file_url NOT LIKE %s",
+				'%/' . $wpdb->esc_like( self::PASSPORT_SUBDIR ) . '/%'
+			)
+		);
+	}
+
+	/**
+	 * Move legacy (public) passport files into the private folder with random names
+	 * and update each booking's stored URL.
+	 *
+	 * @param int $limit Max records per run.
+	 * @return array{moved:int,missing:int,failed:int}
+	 */
+	public static function migrate_legacy_passports( $limit = 200 ) {
+		global $wpdb;
+		$table  = MPK_Booking_Manager::get_table_name();
+		$result = array(
+			'moved'   => 0,
+			'missing' => 0,
+			'failed'  => 0,
+		);
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, passport_file_url FROM {$table} WHERE passport_file_url <> '' AND passport_file_url NOT LIKE %s ORDER BY id ASC LIMIT %d",
+				'%/' . $wpdb->esc_like( self::PASSPORT_SUBDIR ) . '/%',
+				absint( $limit )
+			)
+		);
+		if ( empty( $rows ) ) {
+			return $result;
+		}
+
+		$dir = self::get_passport_dir();
+		foreach ( $rows as $row ) {
+			$src = self::resolve_passport_path( $row->passport_file_url );
+			if ( ! $src ) {
+				// File already gone: clear the dead link so it is not retried forever.
+				$wpdb->update( $table, array( 'passport_file_url' => '' ), array( 'id' => (int) $row->id ), array( '%s' ), array( '%d' ) );
+				$result['missing']++;
+				continue;
+			}
+
+			$ext  = '.' . strtolower( pathinfo( $src, PATHINFO_EXTENSION ) );
+			$name = self::passport_filename( $dir['path'], basename( $src ), $ext );
+			$dest = trailingslashit( $dir['path'] ) . $name;
+
+			$ok = @rename( $src, $dest ); // phpcs:ignore
+			if ( ! $ok && @copy( $src, $dest ) ) { // phpcs:ignore
+				wp_delete_file( $src );
+				$ok = true;
+			}
+			if ( ! $ok ) {
+				$result['failed']++;
+				continue;
+			}
+
+			$wpdb->update(
+				$table,
+				array( 'passport_file_url' => esc_url_raw( trailingslashit( $dir['url'] ) . $name ) ),
+				array( 'id' => (int) $row->id ),
+				array( '%s' ),
+				array( '%d' )
+			);
+			$result['moved']++;
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Admin-only URL to view a booking's passport copy through the secure proxy.
 	 *
 	 * @param int $booking_id Booking ID.
@@ -510,6 +590,7 @@ class MPK_Ajax_Handler {
 		$mail_payload                 = $booking_data;
 		$mail_payload['id']           = $result['id'];
 		$mail_payload['reference_id'] = $result['reference_id'];
+		$mail_payload['pricing']      = $trip['pricing'];
 
 		if ( class_exists( 'MPK_Mailer' ) ) {
 			try {
@@ -687,6 +768,15 @@ class MPK_Ajax_Handler {
 			'check_out'         => $max_out,
 			'grand_total'       => round( $total, 2 ),
 			'items'             => $items,
+			'pricing'           => array(
+				'room_cost'        => round( $room_cost, 2 ),
+				'extra_adult_cost' => round( $extra_cost, 2 ),
+				'extra_adults'     => $extra_adult,
+				'child_cost'       => round( $child_cost, 2 ),
+				'tax'              => $subtotal > 0 ? round( $subtotal * $rules['tax_rate'], 2 ) : 0,
+				'extras'           => $subtotal > 0 ? $rules['extras'] : 0,
+				'service_fee'      => $subtotal > 0 ? $rules['service_fee'] : 0,
+			),
 		);
 	}
 

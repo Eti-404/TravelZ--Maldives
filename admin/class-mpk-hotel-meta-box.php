@@ -502,7 +502,7 @@ class MPK_Hotel_Meta_Box {
 
 				<div class="mpk-field-group">
 					<label><?php esc_html_e( 'Price / Night ($ USD) *', 'maldives-packages' ); ?></label>
-					<input type="number" step="1" min="0" name="mpk_rooms[<?php echo esc_attr( $index ); ?>][price]" value="<?php echo esc_attr( $price ); ?>" placeholder="150" required />
+					<input type="number" step="0.01" min="0" name="mpk_rooms[<?php echo esc_attr( $index ); ?>][price]" value="<?php echo esc_attr( $price ); ?>" placeholder="150" required />
 				</div>
 			</div>
 

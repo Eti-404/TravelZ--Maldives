@@ -45,6 +45,7 @@ class MPK_Admin {
 		add_action( 'wp_ajax_mpk_update_booking_status', array( $this, 'ajax_update_booking_status' ) );
 		// Note: wp_ajax_mpk_delete_booking is registered once in MPK_Ajax_Handler.
 		add_action( 'admin_init', array( $this, 'handle_admin_redirects' ) );
+		add_action( 'admin_post_mpk_migrate_passports', array( $this, 'handle_migrate_passports' ) );
 		add_filter( 'parent_file', array( $this, 'filter_parent_file' ) );
 		add_filter( 'submenu_file', array( $this, 'filter_submenu_file' ) );
 	}
@@ -312,6 +313,31 @@ class MPK_Admin {
 	}
 
 	/**
+	 * admin-post: move legacy public passport files into the private folder.
+	 */
+	public function handle_migrate_passports() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'maldives-packages' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'mpk_migrate_passports' );
+
+		$res = MPK_Ajax_Handler::migrate_legacy_passports( 200 );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'        => 'maldives-packages',
+					'mpk_moved'   => (int) $res['moved'],
+					'mpk_missing' => (int) $res['missing'],
+					'mpk_failed'  => (int) $res['failed'],
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
 	 * Render the main Maldives Bookings admin page.
 	 */
 	public function render_bookings_page() {
@@ -458,6 +484,41 @@ class MPK_Admin {
 					<?php endif; ?>
 				</form>
 			</div>
+
+			<?php
+			// Passport migration result + pending legacy files notice.
+			if ( isset( $_GET['mpk_moved'] ) ) :
+				$mv = absint( $_GET['mpk_moved'] );
+				$ms = isset( $_GET['mpk_missing'] ) ? absint( $_GET['mpk_missing'] ) : 0;
+				$fl = isset( $_GET['mpk_failed'] ) ? absint( $_GET['mpk_failed'] ) : 0;
+				?>
+				<div class="notice <?php echo $fl ? 'notice-warning' : 'notice-success'; ?> is-dismissible">
+					<p>
+						<?php
+						/* translators: 1: moved, 2: missing, 3: failed */
+						echo esc_html( sprintf( __( 'Passport migration: %1$d moved to private storage, %2$d missing files cleared, %3$d failed.', 'maldives-packages' ), $mv, $ms, $fl ) );
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<?php $legacy_passports = MPK_Ajax_Handler::count_legacy_passports(); ?>
+			<?php if ( $legacy_passports > 0 ) : ?>
+				<div class="notice notice-error" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+					<p>
+						<strong><?php esc_html_e( 'Security:', 'maldives-packages' ); ?></strong>
+						<?php
+						/* translators: %d: number of bookings */
+						echo esc_html( sprintf( _n( '%d booking has a passport copy stored in a publicly accessible folder.', '%d bookings have passport copies stored in a publicly accessible folder.', $legacy_passports, 'maldives-packages' ), $legacy_passports ) );
+						?>
+					</p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin: 6px 0;">
+						<input type="hidden" name="action" value="mpk_migrate_passports" />
+						<?php wp_nonce_field( 'mpk_migrate_passports' ); ?>
+						<button type="submit" class="button button-primary"><?php esc_html_e( 'Move to Private Storage', 'maldives-packages' ); ?></button>
+					</form>
+				</div>
+			<?php endif; ?>
 
 			<!-- Notice Banner -->
 			<div id="mpk-admin-toast" class="mpk-toast" style="display:none;"></div>

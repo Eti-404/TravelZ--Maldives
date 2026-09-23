@@ -98,6 +98,8 @@ class MPK_Mailer {
 			'payment_method'    => $payment_label,
 			'status'            => $status,
 			'site_name'         => $site_name,
+			'items'             => ! empty( $data['booking_items'] ) && is_array( $data['booking_items'] ) ? $data['booking_items'] : array(),
+			'pricing'           => ! empty( $data['pricing'] ) && is_array( $data['pricing'] ) ? $data['pricing'] : array(),
 		);
 
 		// 1. Dispatch Customer Confirmation Email
@@ -158,6 +160,93 @@ class MPK_Mailer {
 		}
 
 		return $results;
+	}
+
+	/**
+	 * Room-by-room itinerary table for emails (all values escaped).
+	 *
+	 * @param array $items Booking line items.
+	 * @return string
+	 */
+	private static function render_items_table( $items ) {
+		if ( empty( $items ) || ! is_array( $items ) ) {
+			return '';
+		}
+		$td = 'padding:8px 10px; font-size:12px; color:#0f172a; border-bottom:1px solid #f1f5f9; vertical-align:top;';
+		$th = 'padding:8px 10px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; text-align:left; border-bottom:1px solid #e2e8f0;';
+		ob_start();
+		?>
+		<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #e2e8f0; border-radius:12px; margin-bottom:24px; border-collapse:separate; overflow:hidden;">
+			<tr><td colspan="4" style="padding:12px 10px 4px; font-size:14px; font-weight:700; color:#0f172a;">Room-by-Room Itinerary</td></tr>
+			<tr>
+				<th style="<?php echo esc_attr( $th ); ?>">Stay</th>
+				<th style="<?php echo esc_attr( $th ); ?>">Dates</th>
+				<th style="<?php echo esc_attr( $th ); ?> text-align:right;">Rate</th>
+				<th style="<?php echo esc_attr( $th ); ?> text-align:right;">Total</th>
+			</tr>
+			<?php foreach ( $items as $it ) : ?>
+				<?php
+				$n    = isset( $it['nights'] ) ? (int) $it['nights'] : 0;
+				$r    = isset( $it['rooms'] ) ? max( 1, (int) $it['rooms'] ) : 1;
+				$rate = isset( $it['price'] ) ? (float) $it['price'] : 0;
+				?>
+				<tr>
+					<td style="<?php echo esc_attr( $td ); ?>">
+						<strong><?php echo esc_html( isset( $it['hotel'] ) ? $it['hotel'] : '' ); ?></strong><br>
+						<?php echo esc_html( isset( $it['room'] ) ? $it['room'] : '' ); ?>
+						<?php if ( ! empty( $it['location'] ) ) : ?>
+							<br><span style="color:#64748b;"><?php echo esc_html( $it['location'] ); ?></span>
+						<?php endif; ?>
+					</td>
+					<td style="<?php echo esc_attr( $td ); ?>">
+						<?php echo esc_html( ( isset( $it['check_in'] ) ? $it['check_in'] : '' ) . ' → ' . ( isset( $it['check_out'] ) ? $it['check_out'] : '' ) ); ?><br>
+						<span style="color:#64748b;"><?php echo esc_html( $n . ' ' . ( 1 === $n ? 'night' : 'nights' ) ); ?></span>
+					</td>
+					<td style="<?php echo esc_attr( $td ); ?> text-align:right;"><?php echo esc_html( '$' . number_format( $rate, 2 ) . ( $r > 1 ? ' × ' . $r : '' ) ); ?></td>
+					<td style="<?php echo esc_attr( $td ); ?> text-align:right; font-weight:700;"><?php echo esc_html( '$' . number_format( $rate * $n * $r, 2 ) ); ?></td>
+				</tr>
+			<?php endforeach; ?>
+		</table>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Price breakdown rows (<tr>) for the financial summary.
+	 *
+	 * @param array $p     Pricing breakdown.
+	 * @param array $d     View data (children/infants counts).
+	 * @return string
+	 */
+	private static function render_breakdown_rows( $p, $d ) {
+		if ( empty( $p ) || ! is_array( $p ) ) {
+			return '';
+		}
+		$rows = array( array( 'Rooms', isset( $p['room_cost'] ) ? $p['room_cost'] : 0 ) );
+		if ( ! empty( $p['extra_adult_cost'] ) ) {
+			$rows[] = array( 'Extra adults (' . (int) $p['extra_adults'] . ')', $p['extra_adult_cost'] );
+		}
+		if ( ! empty( $p['child_cost'] ) ) {
+			$rows[] = array( 'Children (' . (int) $d['children'] . ')', $p['child_cost'] );
+		}
+		if ( ! empty( $d['infants'] ) ) {
+			$rows[] = array( 'Infants (' . (int) $d['infants'] . ')', null );
+		}
+		$rows[] = array( 'Tax', isset( $p['tax'] ) ? $p['tax'] : 0 );
+		if ( ! empty( $p['extras'] ) ) {
+			$rows[] = array( 'Extra charges', $p['extras'] );
+		}
+		if ( ! empty( $p['service_fee'] ) ) {
+			$rows[] = array( 'Service fee', $p['service_fee'] );
+		}
+
+		$html = '';
+		foreach ( $rows as $row ) {
+			$val   = null === $row[1] ? 'Free' : '$' . number_format( (float) $row[1], 2 );
+			$html .= '<tr><td style="font-size:13px; color:#64748b; padding:3px 0;">' . esc_html( $row[0] ) . '</td>'
+				. '<td align="right" style="font-size:13px; color:#0f172a; padding:3px 0;">' . esc_html( $val ) . '</td></tr>';
+		}
+		return $html;
 	}
 
 	/**
@@ -297,13 +386,16 @@ class MPK_Mailer {
 				</tr>
 			</table>
 
+			<?php echo self::render_items_table( $d['items'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped inside. ?>
+
 			<!-- Financial Summary Card -->
 			<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:24px;">
 				<tr>
 					<td style="padding:16px 20px;">
 						<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+							<?php echo self::render_breakdown_rows( $d['pricing'], $d ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped inside. ?>
 							<tr>
-								<td style="font-size:14px; color:#64748b;">Payment Method</td>
+								<td style="font-size:14px; color:#64748b; padding-top:6px;">Payment Method</td>
 								<td align="right" style="font-size:14px; font-weight:700; color:#0f172a;">
 									<?php echo esc_html( $d['payment_method'] ); ?>
 								</td>
@@ -480,6 +572,17 @@ class MPK_Mailer {
 					<td style="padding:12px 14px; font-size:18px; font-weight:800; color:#10b981;"><?php echo esc_html( $d['grand_total'] ); ?></td>
 				</tr>
 			</table>
+
+			<?php echo self::render_items_table( $d['items'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped inside. ?>
+			<?php if ( ! empty( $d['pricing'] ) ) : ?>
+				<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:24px;">
+					<tr><td style="padding:14px 18px;">
+						<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+							<?php echo self::render_breakdown_rows( $d['pricing'], $d ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped inside. ?>
+						</table>
+					</td></tr>
+				</table>
+			<?php endif; ?>
 
 			<?php if ( ! empty( $d['special_requests'] ) ) : ?>
 			<div style="background-color:#fffbeb; border:1px solid #fef3c7; border-left:4px solid #f59e0b; padding:12px 16px; border-radius:6px; margin-bottom:24px;">

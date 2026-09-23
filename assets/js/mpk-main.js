@@ -1659,7 +1659,7 @@
 				if (paySettings.office_address) instHtml += '<p style="margin: 0;"><strong>Address:</strong> ' + escHtml(paySettings.office_address) + '</p>';
 				if (paySettings.support_phone) instHtml += '<p style="margin: 0;"><strong>Phone:</strong> ' + escHtml(paySettings.support_phone) + '</p>';
 				if (paySettings.support_email) instHtml += '<p style="margin: 0;"><strong>Email:</strong> ' + escHtml(paySettings.support_email) + '</p>';
-				instHtml += '<p style="margin: 0;"><strong>Hours:</strong> Sun–Thu, 9:00 AM – 6:00 PM</p>';
+				if (paySettings.office_hours) instHtml += '<p style="margin: 0;"><strong>Hours:</strong> ' + escHtml(paySettings.office_hours) + '</p>';
 				instHtml += '</div>';
 			} else if (state.paymentMethod === 'bank') {
 				instHtml += '<div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">';
