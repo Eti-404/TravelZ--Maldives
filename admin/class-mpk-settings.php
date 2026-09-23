@@ -155,6 +155,9 @@ class MPK_Settings {
 			$settings['hero_subtitle']   = isset( $_POST['hero_subtitle'] ) ? sanitize_textarea_field( wp_unslash( $_POST['hero_subtitle'] ) ) : $defaults['hero_subtitle'];
 			$settings['currency_symbol'] = isset( $_POST['currency_symbol'] ) ? sanitize_text_field( wp_unslash( $_POST['currency_symbol'] ) ) : '$';
 			$settings['passport_notice'] = isset( $_POST['passport_notice'] ) ? sanitize_textarea_field( wp_unslash( $_POST['passport_notice'] ) ) : $defaults['passport_notice'];
+
+			// Stored as a separate option so uninstall.php can read it without loading the plugin.
+			update_option( 'mpk_delete_data_on_uninstall', ! empty( $_POST['mpk_delete_data_on_uninstall'] ) ? 1 : 0, false );
 		} elseif ( 'pricing' === $active_tab ) {
 			$tax_pct = isset( $_POST['tax_rate_pct'] ) ? floatval( $_POST['tax_rate_pct'] ) : 8.0;
 			$settings['tax_rate']            = $tax_pct / 100.0;
@@ -304,6 +307,16 @@ class MPK_Settings {
 								<td>
 									<textarea name="passport_notice" id="passport_notice" rows="2" class="large-text"><?php echo esc_textarea( $s['passport_notice'] ); ?></textarea>
 									<p class="description"><?php esc_html_e( 'Advisory note shown under Important Notes and Passport Upload in Step 3.', 'maldives-packages' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Data on Uninstall', 'maldives-packages' ); ?></th>
+								<td>
+									<label for="mpk_delete_data_on_uninstall">
+										<input name="mpk_delete_data_on_uninstall" type="checkbox" id="mpk_delete_data_on_uninstall" value="1" <?php checked( 1, (int) get_option( 'mpk_delete_data_on_uninstall', 0 ) ); ?> />
+										<?php esc_html_e( 'Delete ALL plugin data when the plugin is deleted', 'maldives-packages' ); ?>
+									</label>
+									<p class="description" style="color:#b91c1c;"><?php esc_html_e( 'Removes every booking, uploaded passport copy, hotel, destination and setting. This cannot be undone. Leave unchecked to keep data when reinstalling.', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
 						</table>

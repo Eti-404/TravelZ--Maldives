@@ -566,6 +566,7 @@ class MPK_Ajax_Handler {
 			'payment_method'    => $payment_method,
 			'status'            => 'Pending',
 			'booking_items'     => $trip['items'],
+			'pricing_breakdown' => $trip['pricing'],
 		);
 
 		// 6. Save booking using Booking Manager

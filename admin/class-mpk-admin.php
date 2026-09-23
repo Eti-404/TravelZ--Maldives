@@ -371,14 +371,21 @@ class MPK_Admin {
 		}
 
 		$where_sql = implode( ' AND ', $where_clauses );
-		$query = "SELECT * FROM {$table_name} WHERE {$where_sql} ORDER BY id DESC";
 
-		if ( ! empty( $query_params ) ) {
-			$safe_query = $wpdb->prepare( $query, $query_params );
-			$bookings = $wpdb->get_results( $safe_query );
-		} else {
-			$bookings = $wpdb->get_results( $query );
-		}
+		// Pagination
+		$per_page     = (int) apply_filters( 'mpk_bookings_per_page', 25 );
+		$per_page     = max( 5, min( 200, $per_page ) );
+		$current_page = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
+
+		$count_query    = "SELECT COUNT(*) FROM {$table_name} WHERE {$where_sql}";
+		$filtered_total = (int) ( ! empty( $query_params ) ? $wpdb->get_var( $wpdb->prepare( $count_query, $query_params ) ) : $wpdb->get_var( $count_query ) );
+		$total_pages    = max( 1, (int) ceil( $filtered_total / $per_page ) );
+		$current_page   = min( $current_page, $total_pages );
+		$offset         = ( $current_page - 1 ) * $per_page;
+
+		$query       = "SELECT * FROM {$table_name} WHERE {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d";
+		$page_params = array_merge( $query_params, array( $per_page, $offset ) );
+		$bookings    = $wpdb->get_results( $wpdb->prepare( $query, $page_params ) );
 
 		// Summary Stats
 		$total_count     = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name}" );
@@ -591,6 +598,7 @@ class MPK_Admin {
 									'payment_method'    => $payment_label,
 									'status'            => $b->status,
 									'created_at'        => gmdate( 'd M Y, H:i', strtotime( $b->created_at ) ),
+									'pricing'           => ( ! empty( $b->pricing_breakdown ) && is_array( json_decode( $b->pricing_breakdown, true ) ) ) ? json_decode( $b->pricing_breakdown, true ) : null,
 									'items'             => ( ! empty( $b->booking_items ) && is_array( json_decode( $b->booking_items, true ) ) ) ? json_decode( $b->booking_items, true ) : array(),
 								);
 								?>
@@ -706,6 +714,33 @@ class MPK_Admin {
 					</tbody>
 				</table>
 			</div>
+
+			<?php if ( $total_pages > 1 ) : ?>
+				<div class="tablenav bottom mpk-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+					<span class="displaying-num">
+						<?php
+						/* translators: 1: first item, 2: last item, 3: total */
+						echo esc_html( sprintf( __( 'Showing %1$d–%2$d of %3$d bookings', 'maldives-packages' ), $offset + 1, min( $offset + $per_page, $filtered_total ), $filtered_total ) );
+						?>
+					</span>
+					<div class="tablenav-pages">
+						<?php
+						echo wp_kses_post(
+							paginate_links(
+								array(
+									'base'      => add_query_arg( 'paged', '%#%' ),
+									'format'    => '',
+									'current'   => $current_page,
+									'total'     => $total_pages,
+									'prev_text' => '&laquo;',
+									'next_text' => '&raquo;',
+								)
+							)
+						);
+						?>
+					</div>
+				</div>
+			<?php endif; ?>
 		</div>
 
 		<!-- Booking Details Modal -->
@@ -791,6 +826,14 @@ class MPK_Admin {
 								<span class="mpk-modal-val" id="mpk-modal-pricing" style="color: #0284c7; font-weight: 700;">—</span>
 							</div>
 						</div>
+					</div>
+
+					<!-- Price Breakdown (saved at booking time) -->
+					<div class="mpk-modal-section" id="mpk-modal-pricing-section" style="display: none;">
+						<h4 class="mpk-modal-section-title"><span class="dashicons dashicons-calculator"></span> <?php esc_html_e( 'Price Breakdown', 'maldives-packages' ); ?></h4>
+						<table class="widefat striped" style="border-radius: 8px; overflow: hidden; max-width: 420px;">
+							<tbody id="mpk-modal-pricing-body"></tbody>
+						</table>
 					</div>
 
 					<!-- Per-room Itinerary (from booking_items) -->
@@ -1485,6 +1528,40 @@ class MPK_Admin {
 							itemsBody.appendChild(tr);
 						}
 						itemsSection.style.display = items.length ? 'block' : 'none';
+					}
+
+					// Price breakdown saved at booking time (textContent only)
+					var prSection = document.getElementById('mpk-modal-pricing-section');
+					var prBody = document.getElementById('mpk-modal-pricing-body');
+					if (prSection && prBody) {
+						while (prBody.firstChild) prBody.removeChild(prBody.firstChild);
+						var pr = data.pricing;
+						if (pr && typeof pr === 'object') {
+							var money = function (v) { return '$' + (parseFloat(v) || 0).toFixed(2); };
+							var rowsPr = [['Rooms', money(pr.room_cost)]];
+							if (parseFloat(pr.extra_adult_cost) > 0) rowsPr.push(['Extra adults (' + (parseInt(pr.extra_adults, 10) || 0) + ')', money(pr.extra_adult_cost)]);
+							if (parseFloat(pr.child_cost) > 0) rowsPr.push(['Children (' + data.children + ')', money(pr.child_cost)]);
+							if (data.infants > 0) rowsPr.push(['Infants (' + data.infants + ')', 'Free']);
+							rowsPr.push(['Tax', money(pr.tax)]);
+							if (parseFloat(pr.extras) > 0) rowsPr.push(['Extra charges', money(pr.extras)]);
+							if (parseFloat(pr.service_fee) > 0) rowsPr.push(['Service fee', money(pr.service_fee)]);
+							rowsPr.push(['Grand Total', '$' + data.grand_total]);
+							for (var pi = 0; pi < rowsPr.length; pi++) {
+								var ptr = document.createElement('tr');
+								var ptd1 = document.createElement('td');
+								var ptd2 = document.createElement('td');
+								ptd1.textContent = rowsPr[pi][0];
+								ptd2.textContent = rowsPr[pi][1];
+								ptd2.style.textAlign = 'right';
+								if (pi === rowsPr.length - 1) { ptd1.style.fontWeight = '700'; ptd2.style.fontWeight = '700'; }
+								ptr.appendChild(ptd1);
+								ptr.appendChild(ptd2);
+								prBody.appendChild(ptr);
+							}
+							prSection.style.display = 'block';
+						} else {
+							prSection.style.display = 'none';
+						}
 					}
 
 					modal.style.display = 'flex';

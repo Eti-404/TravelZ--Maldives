@@ -23,7 +23,7 @@ class MPK_Booking_Manager {
 	/**
 	 * Schema version. Bump whenever the CREATE TABLE definition changes.
 	 */
-	const DB_VERSION = '1.1.0';
+	const DB_VERSION = '1.2.0';
 
 	/**
 	 * Max lengths of varchar columns (keeps inserts from failing in MySQL strict mode).
@@ -76,6 +76,7 @@ class MPK_Booking_Manager {
 			hotel_name text,
 			room_name text,
 			booking_items longtext,
+			pricing_breakdown longtext,
 			check_in date DEFAULT NULL,
 			check_out date DEFAULT NULL,
 			adults int(11) DEFAULT 1 NOT NULL,
@@ -202,6 +203,7 @@ class MPK_Booking_Manager {
 			'status'            => ! empty( $data['status'] ) ? sanitize_text_field( $data['status'] ) : 'Pending',
 			'created_at'        => current_time( 'mysql' ),
 			'booking_items'     => ! empty( $data['booking_items'] ) && is_array( $data['booking_items'] ) ? wp_json_encode( $data['booking_items'] ) : '',
+			'pricing_breakdown' => ! empty( $data['pricing_breakdown'] ) && is_array( $data['pricing_breakdown'] ) ? wp_json_encode( $data['pricing_breakdown'] ) : '',
 		);
 
 		// Keep varchar fields within column limits so strict-mode inserts never fail.
@@ -234,6 +236,7 @@ class MPK_Booking_Manager {
 			'%s', // status
 			'%s', // created_at
 			'%s', // booking_items
+			'%s', // pricing_breakdown
 		);
 
 		$result = $wpdb->insert( $table_name, $insert_data, $formats );
