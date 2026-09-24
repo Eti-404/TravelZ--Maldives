@@ -525,9 +525,9 @@ class MPK_Frontend {
 												<input type="range" id="mpk-price-range" class="mpk-range-input" min="50" max="1000" step="10" value="1000" aria-label="Maximum price per night" />
 											</div>
 											<div class="mpk-price-range-label">
-												<span class="mpk-price-pill" id="mpk-price-min-label">$50</span>
+												<span class="mpk-price-pill" id="mpk-price-min-label"><?php echo esc_html( MPK_Data_Manager::format_price( 0, 0 ) ); ?></span>
 												<span class="mpk-price-unit">per night</span>
-												<span class="mpk-price-pill" id="mpk-price-max-label">$1000</span>
+												<span class="mpk-price-pill" id="mpk-price-max-label"><?php echo esc_html( MPK_Data_Manager::format_price( 1000, 0 ) ); ?></span>
 											</div>
 										</div>
 									</div>
@@ -801,7 +801,7 @@ class MPK_Frontend {
 
 								<div class="mpk-confirm-amount-box">
 									<p class="mpk-confirm-amount-label">Amount to pay</p>
-									<p class="mpk-confirm-amount-val" id="mpk-confirm-amount-display">$0.00</p>
+									<p class="mpk-confirm-amount-val" id="mpk-confirm-amount-display"><?php echo esc_html( MPK_Data_Manager::format_price( 0 ) ); ?></p>
 								</div>
 							</div>
 						</div>

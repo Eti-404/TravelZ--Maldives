@@ -217,11 +217,11 @@ class MPK_CPT {
 				</tr>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Extra Charges', 'maldives-packages' ); ?></th>
-					<td><code>$<?php echo esc_html( isset( $settings['extras'] ) ? $settings['extras'] : 45 ); ?></code></td>
+					<td><code><?php echo esc_html( MPK_Data_Manager::format_price( isset( $settings['extras'] ) ? $settings['extras'] : 45 ) ); ?></code></td>
 				</tr>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Service Fee', 'maldives-packages' ); ?></th>
-					<td><code>$<?php echo esc_html( isset( $settings['service_fee'] ) ? $settings['service_fee'] : 25 ); ?></code></td>
+					<td><code><?php echo esc_html( MPK_Data_Manager::format_price( isset( $settings['service_fee'] ) ? $settings['service_fee'] : 25 ) ); ?></code></td>
 				</tr>
 			</table>
 		</div>

@@ -250,7 +250,7 @@
 			meals: [],
 			beds: [],
 			rooms: [],
-			minPrice: 50,
+			minPrice: 0,
 			maxPrice: 1000
 		},
 		confirmationCode: ''
@@ -438,6 +438,33 @@
 	function fmtPlain(n) {
 		var v = Math.round((parseFloat(n) || 0) * 100) / 100;
 		return (v % 1 === 0) ? String(v) : v.toFixed(2);
+	}
+
+	// Active currency from admin Settings (symbol, position, decimals)
+	function getCurrency() {
+		var c = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.currency) ? window.MPK_INITIAL_DATA.currency : {};
+		return {
+			symbol: (c.symbol !== undefined && c.symbol !== '') ? String(c.symbol) : '$',
+			position: c.position || 'left',
+			decimals: (c.decimals === 0 || c.decimals === '0') ? 0 : 2
+		};
+	}
+
+	// Format money in the active currency.
+	// exact=true  -> always currency decimals (totals, e.g. "৳12,500" / "$836.80")
+	// exact=false -> no trailing zeros (nightly rates, e.g. "$120", "$132.50")
+	function money(n, exact) {
+		var c = getCurrency();
+		var v = parseFloat(n) || 0;
+		var minD = exact ? c.decimals : 0;
+		var maxD = c.decimals;
+		var num = v.toLocaleString('en-US', { minimumFractionDigits: minD, maximumFractionDigits: maxD });
+		switch (c.position) {
+			case 'left_space': return c.symbol + ' ' + num;
+			case 'right': return num + c.symbol;
+			case 'right_space': return num + ' ' + c.symbol;
+			default: return c.symbol + num;
+		}
 	}
 
 	// Amenity pill icons (reference: Pool=waves, Wifi=wifi, Restaurant=utensils, others=sparkles)
@@ -886,6 +913,7 @@
 
 		var priceSlider = document.getElementById('mpk-price-range');
 		var priceSliderMin = document.getElementById('mpk-price-range-min');
+		setupPriceRange();
 		if (priceSlider) {
 			priceSlider.addEventListener('input', function () {
 				var v = parseInt(this.value, 10);
@@ -924,8 +952,9 @@
 		state.filters.meals = [];
 		state.filters.beds = [];
 		state.filters.rooms = [];
-		state.filters.maxPrice = 1000;
-		state.filters.minPrice = 50;
+		var pr = getPriceBounds();
+		state.filters.maxPrice = pr.max;
+		state.filters.minPrice = pr.min;
 
 		var searchInput = document.getElementById('mpk-hotel-search');
 		if (searchInput) searchInput.value = '';
@@ -937,11 +966,50 @@
 
 		var priceSlider = document.getElementById('mpk-price-range');
 		var priceSliderMin = document.getElementById('mpk-price-range-min');
-		if (priceSlider) priceSlider.value = '1000';
-		if (priceSliderMin) priceSliderMin.value = '50';
+		if (priceSlider) priceSlider.value = String(pr.max);
+		if (priceSliderMin) priceSliderMin.value = String(pr.min);
 		syncPriceRange();
 
 		renderHotels();
+	}
+
+	// Price filter bounds follow the real room rates (works for any currency: $1000 or ৳150,000)
+	function niceCeil(v) {
+		if (v <= 0) return 100;
+		var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+		var steps = [1, 2, 2.5, 5, 10];
+		for (var i = 0; i < steps.length; i++) {
+			if (steps[i] * mag >= v) return steps[i] * mag;
+		}
+		return 10 * mag;
+	}
+
+	function getPriceBounds() {
+		var maxRate = 0;
+		for (var h = 0; h < HOTELS.length; h++) {
+			var rooms = HOTELS[h].rooms || [];
+			for (var r = 0; r < rooms.length; r++) {
+				maxRate = Math.max(maxRate, roomRate(rooms[r]));
+			}
+		}
+		var max = niceCeil(maxRate);
+		var step = Math.max(1, Math.round(max / 100));
+		return { min: 0, max: max, step: step };
+	}
+
+	function setupPriceRange() {
+		var pr = getPriceBounds();
+		var ids = ['mpk-price-range-min', 'mpk-price-range'];
+		for (var i = 0; i < ids.length; i++) {
+			var el = document.getElementById(ids[i]);
+			if (!el) continue;
+			el.min = String(pr.min);
+			el.max = String(pr.max);
+			el.step = String(pr.step);
+			el.value = String(i === 0 ? pr.min : pr.max);
+		}
+		state.filters.minPrice = pr.min;
+		state.filters.maxPrice = pr.max;
 	}
 
 	// Dual-thumb price range: fill between thumbs + labels (reference slider look)
@@ -960,10 +1028,10 @@
 			fill.style.left = ((vMin - lo) / (hi - lo) * 100) + '%';
 			fill.style.right = (100 - (vMax - lo) / (hi - lo) * 100) + '%';
 		}
-		if (minLbl) minLbl.textContent = '$' + vMin;
-		if (maxLbl) maxLbl.textContent = '$' + vMax;
+		if (minLbl) minLbl.textContent = money(vMin);
+		if (maxLbl) maxLbl.textContent = money(vMax);
 		// Keep the min thumb reachable when both thumbs meet at the top end
-		if (minEl) minEl.style.zIndex = (vMin >= hi - 10) ? '4' : '3';
+		if (minEl) minEl.style.zIndex = (vMin >= hi - (parseFloat(maxEl.step) || 1)) ? '4' : '3';
 	}
 
 	function renderHotels() {
@@ -1099,7 +1167,7 @@
 						html += '</div>';
 
 						html += '<div class="mpk-room-price">';
-						html += '<span class="mpk-room-rate">$' + fmtPlain(roomRate(room)) + '</span>';
+						html += '<span class="mpk-room-rate">' + escHtml(money(roomRate(room))) + '</span>';
 						html += '<span class="mpk-room-unit">per night</span>';
 						html += '</div>';
 						html += '</div>';
@@ -1140,7 +1208,7 @@
 
 							html += '<div class="mpk-room-stay-calc">';
 							html += '<span class="mpk-stay-nights">' + MOON_SVG + nights + ' ' + (nights === 1 ? 'night' : 'nights') + '</span>';
-							html += '<span class="mpk-tabular">$' + fmtPlain(roomRate(room) * nights * Math.max(1, state.rooms || 1)) + '</span>';
+							html += '<span class="mpk-tabular">' + escHtml(money(roomRate(room) * nights * Math.max(1, state.rooms || 1))) + '</span>';
 							html += '</div>';
 							html += '</div>'; // End room-dates
 						}
@@ -1597,7 +1665,7 @@
 							staysHtml += '<p class="mpk-stay-dates">' + formatDate(item.checkIn) + ' → ' + formatDate(item.checkOut) + '</p>';
 						}
 						staysHtml += '</div>';
-						staysHtml += '<p class="mpk-stay-price mpk-tabular">$' + fmtPlain(roomTotal) + '</p>';
+						staysHtml += '<p class="mpk-stay-price mpk-tabular">' + escHtml(money(roomTotal)) + '</p>';
 						staysHtml += '</div>';
 					}
 
@@ -1648,7 +1716,7 @@
 					pHtml += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';
 					pHtml += '<span>' + escHtml(sLoc ? sLoc.name : sLocId) + '</span>';
 					pHtml += '</div>';
-					pHtml += '<span class="mpk-summary-loc-price tabular-nums">$' + sLocTotal.toFixed(2) + '</span>';
+					pHtml += '<span class="mpk-summary-loc-price tabular-nums">' + escHtml(money(sLocTotal, true)) + '</span>';
 					pHtml += '</div>';
 
 					pHtml += '<div class="mpk-summary-room-items">';
@@ -1666,9 +1734,9 @@
 						pHtml += '<span class="mpk-summary-sep">·</span>';
 						pHtml += '<span>' + escHtml(sRoom ? sRoom.name : '') + '</span>';
 						pHtml += '<span class="mpk-summary-sep">·</span>';
-						pHtml += '<span>' + sNights + ' ' + (sNights === 1 ? 'night' : 'nights') + ' × $' + fmtPlain(sPrice) + (pricing.rooms > 1 ? ' × ' + pricing.rooms + ' rooms' : '') + '</span>';
+						pHtml += '<span>' + sNights + ' ' + (sNights === 1 ? 'night' : 'nights') + ' × ' + escHtml(money(sPrice)) + (pricing.rooms > 1 ? ' × ' + pricing.rooms + ' rooms' : '') + '</span>';
 						pHtml += '</div>';
-						pHtml += '<span class="mpk-summary-room-total tabular-nums">$' + sItemTotal.toFixed(2) + '</span>';
+						pHtml += '<span class="mpk-summary-room-total tabular-nums">' + escHtml(money(sItemTotal, true)) + '</span>';
 						pHtml += '</div>';
 					}
 					pHtml += '</div>'; // End mpk-summary-room-items
@@ -1690,7 +1758,7 @@
 				for (var bi = 0; bi < bRows.length; bi++) {
 					pHtml += '<div class="mpk-summary-room-row">';
 					pHtml += '<div class="mpk-summary-room-meta"><span>' + escHtml(bRows[bi][0]) + '</span></div>';
-					pHtml += '<span class="mpk-summary-room-total tabular-nums">' + (bRows[bi][1] === null ? 'Free' : '$' + fmtMoney(bRows[bi][1])) + '</span>';
+					pHtml += '<span class="mpk-summary-room-total tabular-nums">' + (bRows[bi][1] === null ? 'Free' : escHtml(money(bRows[bi][1], true))) + '</span>';
 					pHtml += '</div>';
 				}
 				pHtml += '</div>';
@@ -1700,7 +1768,7 @@
 			pHtml += '<div class="mpk-grand-total-banner">';
 			pHtml += '<div>';
 			pHtml += '<p class="mpk-grand-total-label">Grand Total</p>';
-			pHtml += '<p class="mpk-grand-total-amount">$' + pricing.total.toFixed(2) + '</p>';
+			pHtml += '<p class="mpk-grand-total-amount">' + escHtml(money(pricing.total, true)) + '</p>';
 			pHtml += '<p class="mpk-grand-total-note">Price is valid for BD passport holders only.</p>';
 			pHtml += '</div>';
 			pHtml += '<div class="mpk-grand-total-badge">';
@@ -1827,7 +1895,7 @@
 
 		var pricing = calcPricing();
 		var confirmedTotal = (typeof state.serverTotal === 'number') ? state.serverTotal : pricing.total;
-		if (amountEl) amountEl.textContent = '$' + confirmedTotal.toFixed(2);
+		if (amountEl) amountEl.textContent = money(confirmedTotal, true);
 
 		if (instructionsEl) {
 			// Payment & concierge details come from admin Settings (same source as the email)

@@ -66,7 +66,7 @@ class MPK_Mailer {
 			$payment_label = ucwords( str_replace( array( '-', '_' ), ' ', (string) $payment_method ) );
 		}
 
-		$formatted_total = '$' . number_format( $grand_total, 2 );
+		$formatted_total = MPK_Data_Manager::format_price( $grand_total );
 		$site_name       = get_bloginfo( 'name' );
 		$admin_email     = get_option( 'admin_email' );
 
@@ -202,8 +202,8 @@ class MPK_Mailer {
 						<?php echo esc_html( ( isset( $it['check_in'] ) ? $it['check_in'] : '' ) . ' → ' . ( isset( $it['check_out'] ) ? $it['check_out'] : '' ) ); ?><br>
 						<span style="color:#64748b;"><?php echo esc_html( $n . ' ' . ( 1 === $n ? 'night' : 'nights' ) ); ?></span>
 					</td>
-					<td style="<?php echo esc_attr( $td ); ?> text-align:right;"><?php echo esc_html( '$' . number_format( $rate, 2 ) . ( $r > 1 ? ' × ' . $r : '' ) ); ?></td>
-					<td style="<?php echo esc_attr( $td ); ?> text-align:right; font-weight:700;"><?php echo esc_html( '$' . number_format( $rate * $n * $r, 2 ) ); ?></td>
+					<td style="<?php echo esc_attr( $td ); ?> text-align:right;"><?php echo esc_html( MPK_Data_Manager::format_price( $rate ) . ( $r > 1 ? ' × ' . $r : '' ) ); ?></td>
+					<td style="<?php echo esc_attr( $td ); ?> text-align:right; font-weight:700;"><?php echo esc_html( MPK_Data_Manager::format_price( $rate * $n * $r ) ); ?></td>
 				</tr>
 			<?php endforeach; ?>
 		</table>
@@ -242,7 +242,7 @@ class MPK_Mailer {
 
 		$html = '';
 		foreach ( $rows as $row ) {
-			$val   = null === $row[1] ? 'Free' : '$' . number_format( (float) $row[1], 2 );
+			$val   = null === $row[1] ? 'Free' : MPK_Data_Manager::format_price( (float) $row[1] );
 			$html .= '<tr><td style="font-size:13px; color:#64748b; padding:3px 0;">' . esc_html( $row[0] ) . '</td>'
 				. '<td align="right" style="font-size:13px; color:#0f172a; padding:3px 0;">' . esc_html( $val ) . '</td></tr>';
 		}
@@ -678,7 +678,7 @@ class MPK_Mailer {
 			'room_name'    => $booking->room_name,
 			'check_in'     => $booking->check_in,
 			'check_out'    => $booking->check_out,
-			'grand_total'  => '$' . number_format( (float) $booking->grand_total, 2 ),
+			'grand_total'  => MPK_Data_Manager::format_price( (float) $booking->grand_total ),
 			'new_status'   => $status_clean,
 			'site_name'    => $site_name,
 			'admin_email'  => $admin_email,

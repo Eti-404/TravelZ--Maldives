@@ -448,7 +448,7 @@ class MPK_Admin {
 				<div class="mpk-stat-card mpk-stat-revenue">
 					<div class="mpk-stat-meta">
 						<span class="mpk-stat-label"><?php esc_html_e( 'Approved Bookings Value', 'maldives-packages' ); ?></span>
-						<span class="mpk-stat-value">$<?php echo esc_html( number_format( $total_revenue, 2 ) ); ?></span>
+						<span class="mpk-stat-value"><?php echo esc_html( MPK_Data_Manager::format_price( $total_revenue ) ); ?></span>
 					</div>
 					<div class="mpk-stat-icon-wrap"><span class="dashicons dashicons-money-alt"></span></div>
 				</div>
@@ -594,7 +594,7 @@ class MPK_Admin {
 									'children'          => (int) $b->children,
 									'infants'           => (int) $b->infants,
 									'rooms_count'       => (int) $b->rooms_count,
-									'grand_total'       => number_format( (float) $b->grand_total, 2 ),
+									'grand_total'       => MPK_Data_Manager::format_price( (float) $b->grand_total ),
 									'payment_method'    => $payment_label,
 									'status'            => $b->status,
 									'created_at'        => gmdate( 'd M Y, H:i', strtotime( $b->created_at ) ),
@@ -679,7 +679,7 @@ class MPK_Admin {
 
 									<!-- Amount & Payment -->
 									<td>
-										<div class="mpk-amount-val">$<?php echo esc_html( number_format( (float) $b->grand_total, 2 ) ); ?></div>
+										<div class="mpk-amount-val"><?php echo esc_html( MPK_Data_Manager::format_price( (float) $b->grand_total ) ); ?></div>
 										<span class="mpk-payment-pill mpk-pay-<?php echo esc_attr( strtolower( $b->payment_method ) ); ?>">
 											<?php echo esc_html( $payment_label ); ?>
 										</span>
@@ -1383,6 +1383,13 @@ class MPK_Admin {
 		<script>
 			(function() {
 				var adminNonce = <?php echo wp_json_encode( $admin_nonce ); ?>;
+				var mpkCurrency = <?php echo wp_json_encode( MPK_Data_Manager::get_currency() ); ?>;
+				function mpkMoney(v) {
+					var d = mpkCurrency.decimals;
+					var n = (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+					var sym = mpkCurrency.symbol, p = mpkCurrency.position;
+					return p === 'left_space' ? sym + ' ' + n : p === 'right' ? n + sym : p === 'right_space' ? n + ' ' + sym : sym + n;
+				}
 				var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
 				var currentModalBookingId = null;
 
@@ -1496,7 +1503,7 @@ class MPK_Admin {
 					document.getElementById('mpk-modal-location').textContent = data.selected_location || '—';
 					document.getElementById('mpk-modal-dates').textContent = data.check_in + ' → ' + data.check_out + ' (' + data.nights + ' nights)';
 					document.getElementById('mpk-modal-guests').textContent = data.adults + ' Adults, ' + data.children + ' Children, ' + data.infants + ' Infants (' + data.rooms_count + ' Rooms)';
-					document.getElementById('mpk-modal-pricing').textContent = '$' + data.grand_total + ' (' + data.payment_method + ')';
+					document.getElementById('mpk-modal-pricing').textContent = data.grand_total + ' (' + data.payment_method + ')';
 
 					document.getElementById('mpk-modal-notes').textContent = data.special_requests || 'No special requests submitted by customer.';
 
@@ -1515,8 +1522,8 @@ class MPK_Admin {
 								(itm.hotel || '—') + ' · ' + (itm.room || '—'),
 								itm.location || '—',
 								(itm.check_in || '?') + ' → ' + (itm.check_out || '?') + ' (' + nights + ' ' + (nights === 1 ? 'night' : 'nights') + ')',
-								'$' + rate.toFixed(2) + (rooms > 1 ? ' × ' + rooms + ' rooms' : ''),
-								'$' + (rate * nights * rooms).toFixed(2)
+								mpkMoney(rate) + (rooms > 1 ? ' × ' + rooms + ' rooms' : ''),
+								mpkMoney(rate * nights * rooms)
 							];
 							var tr = document.createElement('tr');
 							for (var ci = 0; ci < cells.length; ci++) {
@@ -1537,7 +1544,7 @@ class MPK_Admin {
 						while (prBody.firstChild) prBody.removeChild(prBody.firstChild);
 						var pr = data.pricing;
 						if (pr && typeof pr === 'object') {
-							var money = function (v) { return '$' + (parseFloat(v) || 0).toFixed(2); };
+							var money = function (v) { return mpkMoney(v); };
 							var rowsPr = [['Rooms', money(pr.room_cost)]];
 							if (parseFloat(pr.extra_adult_cost) > 0) rowsPr.push(['Extra adults (' + (parseInt(pr.extra_adults, 10) || 0) + ')', money(pr.extra_adult_cost)]);
 							if (parseFloat(pr.child_cost) > 0) rowsPr.push(['Children (' + data.children + ')', money(pr.child_cost)]);
@@ -1545,7 +1552,7 @@ class MPK_Admin {
 							rowsPr.push(['Tax', money(pr.tax)]);
 							if (parseFloat(pr.extras) > 0) rowsPr.push(['Extra charges', money(pr.extras)]);
 							if (parseFloat(pr.service_fee) > 0) rowsPr.push(['Service fee', money(pr.service_fee)]);
-							rowsPr.push(['Grand Total', '$' + data.grand_total]);
+							rowsPr.push(['Grand Total', data.grand_total]);
 							for (var pi = 0; pi < rowsPr.length; pi++) {
 								var ptr = document.createElement('tr');
 								var ptd1 = document.createElement('td');
