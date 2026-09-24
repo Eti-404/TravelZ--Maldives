@@ -49,11 +49,12 @@ class MPK_Data_Manager {
 			);
 			$img_idx = 0;
 
+			$synced = array();
 			foreach ( $terms as $term ) {
 				$slug = $term->slug;
 				if ( ! isset( $loc_by_id[ $slug ] ) ) {
 					// New destination created in admin
-					$loc_by_id[ $slug ] = array(
+					$loc = array(
 						'id'      => $slug,
 						'name'    => $term->name,
 						'tagline' => ! empty( $term->description ) ? $term->description : __( 'Pristine island getaway', 'maldives-packages' ),
@@ -62,12 +63,27 @@ class MPK_Data_Manager {
 					);
 					$img_idx++;
 				} else {
-					$loc_by_id[ $slug ]['name'] = $term->name;
+					$loc         = $loc_by_id[ $slug ];
+					$loc['name'] = $term->name;
 					if ( ! empty( $term->description ) ) {
-						$loc_by_id[ $slug ]['tagline'] = $term->description;
+						$loc['tagline'] = $term->description;
 					}
 				}
+
+				// Image chosen in admin (Destinations > Destination Image) wins over defaults.
+				$term_image_id = (int) get_term_meta( $term->term_id, '_mpk_destination_image_id', true );
+				if ( $term_image_id ) {
+					$term_image = wp_get_attachment_image_url( $term_image_id, 'large' );
+					if ( $term_image ) {
+						$loc['image'] = $term_image;
+					}
+				}
+
+				$synced[ $slug ] = $loc;
 			}
+
+			// Only destinations that still exist in admin are offered in the wizard.
+			$loc_by_id = $synced;
 
 			$locations = array_values( $loc_by_id );
 		}

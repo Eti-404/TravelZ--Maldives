@@ -112,6 +112,8 @@ class MPK_Plugin {
 			new MPK_Admin();
 			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-hotel-meta-box.php';
 			new MPK_Hotel_Meta_Box();
+			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-destination-meta.php';
+			new MPK_Destination_Meta();
 		}
 	}
 
