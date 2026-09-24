@@ -280,6 +280,24 @@ class MPK_Booking_Manager {
 	}
 
 	/**
+	 * Update a booking's status.
+	 *
+	 * @param int    $id     Booking record ID.
+	 * @param string $status New status.
+	 * @return bool
+	 */
+	public static function update_status( $id, $status ) {
+		global $wpdb;
+		return false !== $wpdb->update(
+			self::get_table_name(),
+			array( 'status' => self::fit( 'status', sanitize_text_field( $status ) ) ),
+			array( 'id' => absint( $id ) ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
+
+	/**
 	 * Get a booking record by its WooCommerce order ID.
 	 *
 	 * @param int $order_id WooCommerce order ID.

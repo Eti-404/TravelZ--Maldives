@@ -468,6 +468,11 @@ class MPK_Data_Manager {
 	 * @return array{code:string,symbol:string,position:string,decimals:int}
 	 */
 	public static function get_currency() {
+		// WooCommerce checkout: WooCommerce's currency is the single source of truth.
+		if ( class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::controls_currency() ) {
+			return MPK_WooCommerce::get_wc_currency();
+		}
+
 		$s    = get_option( 'mpk_settings', array() );
 		$list = self::get_currency_list();
 

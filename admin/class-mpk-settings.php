@@ -154,6 +154,7 @@ class MPK_Settings {
 			$settings['hero_badge']      = isset( $_POST['hero_badge'] ) ? sanitize_text_field( wp_unslash( $_POST['hero_badge'] ) ) : $defaults['hero_badge'];
 			$settings['hero_title']      = isset( $_POST['hero_title'] ) ? sanitize_text_field( wp_unslash( $_POST['hero_title'] ) ) : $defaults['hero_title'];
 			$settings['hero_subtitle']   = isset( $_POST['hero_subtitle'] ) ? sanitize_textarea_field( wp_unslash( $_POST['hero_subtitle'] ) ) : $defaults['hero_subtitle'];
+			$wc_currency   = class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::controls_currency();
 			$currency_list = MPK_Data_Manager::get_currency_list();
 			$cur_code      = isset( $_POST['currency_code'] ) ? strtoupper( sanitize_key( wp_unslash( $_POST['currency_code'] ) ) ) : 'USD';
 			if ( 'CUSTOM' !== $cur_code && ! isset( $currency_list[ $cur_code ] ) ) {
@@ -165,6 +166,16 @@ class MPK_Settings {
 			$cur_pos                       = isset( $_POST['currency_position'] ) ? sanitize_key( wp_unslash( $_POST['currency_position'] ) ) : 'left';
 			$settings['currency_position'] = in_array( $cur_pos, array( 'left', 'left_space', 'right', 'right_space' ), true ) ? $cur_pos : 'left';
 			$settings['currency_decimals'] = isset( $_POST['currency_decimals'] ) && in_array( $_POST['currency_decimals'], array( '0', '2' ), true ) ? (int) $_POST['currency_decimals'] : '';
+			// WooCommerce owns the currency: keep the stored plugin values untouched.
+			if ( $wc_currency ) {
+				foreach ( array( 'currency_code', 'currency_symbol', 'currency_position', 'currency_decimals' ) as $cur_key ) {
+					if ( isset( $current[ $cur_key ] ) ) {
+						$settings[ $cur_key ] = $current[ $cur_key ];
+					} else {
+						unset( $settings[ $cur_key ] );
+					}
+				}
+			}
 			$settings['passport_notice'] = isset( $_POST['passport_notice'] ) ? sanitize_textarea_field( wp_unslash( $_POST['passport_notice'] ) ) : $defaults['passport_notice'];
 
 			// Stored as a separate option so uninstall.php can read it without loading the plugin.
@@ -314,7 +325,17 @@ class MPK_Settings {
 							<tr>
 								<th scope="row"><label for="currency_code"><?php esc_html_e( 'Currency', 'maldives-packages' ); ?></label></th>
 								<td>
-									<div class="mpk-cur-box">
+									<?php if ( class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::controls_currency() ) : ?>
+										<div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 14px; max-width:640px;">
+											<strong><?php echo esc_html( MPK_Data_Manager::currency_label() ); ?></strong>
+											&nbsp;&mdash;&nbsp;<?php echo esc_html( MPK_Data_Manager::format_price( 12500 ) ); ?>
+											<p class="description" style="margin:6px 0 0;">
+												<?php esc_html_e( 'WooCommerce checkout is on, so prices use the WooCommerce currency (this keeps order amounts and shown prices identical).', 'maldives-packages' ); ?>
+												<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=general' ) ); ?>"><?php esc_html_e( 'Change currency in WooCommerce', 'maldives-packages' ); ?></a>
+											</p>
+										</div>
+									<?php endif; ?>
+									<div class="mpk-cur-box" <?php echo ( class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::controls_currency() ) ? 'style="display:none;"' : ''; ?>>
 										<div class="mpk-cur-row">
 											<label class="mpk-cur-field">
 												<span><?php esc_html_e( 'Currency', 'maldives-packages' ); ?></span>

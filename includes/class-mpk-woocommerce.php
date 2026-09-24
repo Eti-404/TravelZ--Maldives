@@ -32,6 +32,13 @@ class MPK_WooCommerce {
 	const META_REFERENCE  = '_mpk_reference_id';
 
 	/**
+	 * Set while the plugin itself changes an order status (prevents sync loops).
+	 *
+	 * @var bool
+	 */
+	private static $syncing = false;
+
+	/**
 	 * Register hooks.
 	 */
 	public function __construct() {
@@ -40,6 +47,244 @@ class MPK_WooCommerce {
 
 		// On "Pay for order" for a booking, only show the gateway chosen in the wizard.
 		add_filter( 'woocommerce_available_payment_gateways', array( $this, 'restrict_order_pay_gateways' ), 100 );
+
+		// Order status -> booking status.
+		add_action( 'woocommerce_order_status_changed', array( $this, 'on_order_status_changed' ), 10, 4 );
+
+		// Booking summary on WooCommerce's "Order received" page (after online payment).
+		add_action( 'woocommerce_before_thankyou', array( $this, 'render_thankyou_booking' ) );
+		add_filter( 'woocommerce_thankyou_order_received_text', array( $this, 'thankyou_text' ), 10, 2 );
+	}
+
+	/**
+	 * Does WooCommerce's currency drive the plugin (so order amounts and shown prices match)?
+	 *
+	 * @return bool
+	 */
+	public static function controls_currency() {
+		if ( ! self::is_available() || ! function_exists( 'get_woocommerce_currency' ) ) {
+			return false;
+		}
+		$s = get_option( 'mpk_settings', array() );
+		return ! is_array( $s ) || ! isset( $s['wc_checkout'] ) || ! empty( $s['wc_checkout'] );
+	}
+
+	/**
+	 * WooCommerce currency in the plugin's currency format.
+	 *
+	 * @return array{code:string,symbol:string,position:string,decimals:int}
+	 */
+	public static function get_wc_currency() {
+		$code = get_woocommerce_currency();
+		$pos  = get_option( 'woocommerce_currency_pos', 'left' );
+		return array(
+			'code'     => $code,
+			'symbol'   => html_entity_decode( get_woocommerce_currency_symbol( $code ), ENT_QUOTES, 'UTF-8' ),
+			'position' => in_array( $pos, array( 'left', 'left_space', 'right', 'right_space' ), true ) ? $pos : 'left',
+			'decimals' => min( 4, max( 0, (int) wc_get_price_decimals() ) ),
+		);
+	}
+
+	/**
+	 * Booking status for a WooCommerce order status (null = leave unchanged).
+	 *
+	 * @param string $wc_status Order status without "wc-".
+	 * @return string|null
+	 */
+	public static function booking_status_for( $wc_status ) {
+		$map = (array) apply_filters(
+			'mpk_order_to_booking_status',
+			array(
+				'pending'    => 'Pending',
+				'on-hold'    => 'Pending',
+				'processing' => 'Approved',
+				'completed'  => 'Approved',
+				'cancelled'  => 'Cancelled',
+				'failed'     => 'Cancelled',
+				'refunded'   => 'Cancelled',
+			)
+		);
+		return isset( $map[ $wc_status ] ) ? $map[ $wc_status ] : null;
+	}
+
+	/**
+	 * WooCommerce -> booking: keep the booking status in step with its order.
+	 *
+	 * @param int      $order_id Order ID.
+	 * @param string   $from     Old status.
+	 * @param string   $to       New status.
+	 * @param WC_Order $order    Order.
+	 */
+	public function on_order_status_changed( $order_id, $from, $to, $order ) {
+		if ( self::$syncing || ! $order instanceof WC_Order ) {
+			return;
+		}
+		$booking_id = (int) $order->get_meta( self::META_BOOKING_ID );
+		$new        = self::booking_status_for( $to );
+		if ( ! $booking_id || ! $new ) {
+			return;
+		}
+		$booking = MPK_Booking_Manager::get_booking_by_id( $booking_id );
+		if ( ! $booking ) {
+			return;
+		}
+		$current = 'Confirmed' === $booking->status ? 'Approved' : $booking->status;
+		if ( $current === $new ) {
+			return;
+		}
+		MPK_Booking_Manager::update_status( $booking_id, $new );
+		do_action( 'mpk_booking_status_synced_from_order', $booking_id, $new, $order );
+	}
+
+	/**
+	 * Booking -> WooCommerce: mirror a status change made on the bookings dashboard.
+	 *
+	 * @param int    $booking_id Booking ID.
+	 * @param string $new_status Pending | Approved | Cancelled.
+	 */
+	public static function sync_order_from_booking( $booking_id, $new_status ) {
+		if ( ! self::is_available() ) {
+			return;
+		}
+		$booking = MPK_Booking_Manager::get_booking_by_id( $booking_id );
+		$order   = ( $booking && ! empty( $booking->order_id ) ) ? wc_get_order( (int) $booking->order_id ) : null;
+		if ( ! $order ) {
+			return;
+		}
+
+		$current = $order->get_status();
+		$target  = '';
+		if ( 'Approved' === $new_status && in_array( $current, array( 'pending', 'on-hold', 'failed' ), true ) ) {
+			$target = 'processing';
+		} elseif ( 'Cancelled' === $new_status && ! in_array( $current, array( 'cancelled', 'refunded', 'failed' ), true ) ) {
+			$target = 'cancelled';
+		} elseif ( 'Pending' === $new_status && in_array( $current, array( 'processing', 'completed', 'cancelled' ), true ) ) {
+			$target = 'on-hold';
+		}
+		if ( ! $target ) {
+			return;
+		}
+
+		self::$syncing = true;
+		try {
+			/* translators: %s: booking status */
+			$order->update_status( $target, sprintf( __( 'Booking marked %s on the Maldives bookings dashboard.', 'maldives-packages' ), $new_status ) );
+		} finally {
+			self::$syncing = false;
+		}
+	}
+
+	/**
+	 * Booking row for an order created by this plugin.
+	 *
+	 * @param WC_Order|int $order Order or ID.
+	 * @return object|null
+	 */
+	private static function booking_for_order( $order ) {
+		$order = $order instanceof WC_Order ? $order : wc_get_order( $order );
+		if ( ! $order || ! $order->get_meta( self::META_BOOKING_ID ) ) {
+			return null;
+		}
+		return MPK_Booking_Manager::get_booking_by_id( (int) $order->get_meta( self::META_BOOKING_ID ) );
+	}
+
+	/**
+	 * Heading text on the "Order received" page for booking orders.
+	 *
+	 * @param string   $text  Default text.
+	 * @param WC_Order $order Order.
+	 * @return string
+	 */
+	public function thankyou_text( $text, $order ) {
+		if ( ! $order instanceof WC_Order || ! $order->get_meta( self::META_BOOKING_ID ) ) {
+			return $text;
+		}
+		if ( $order->is_paid() ) {
+			return __( 'Thank you! Your payment has been received and your Maldives booking is confirmed.', 'maldives-packages' );
+		}
+		return __( 'Thank you! Your Maldives booking has been received.', 'maldives-packages' );
+	}
+
+	/**
+	 * Booking summary card on the "Order received" page.
+	 *
+	 * @param int $order_id Order ID.
+	 */
+	public function render_thankyou_booking( $order_id ) {
+		$order   = wc_get_order( $order_id );
+		$booking = $order ? self::booking_for_order( $order ) : null;
+		if ( ! $booking ) {
+			return;
+		}
+
+		$items = json_decode( (string) $booking->booking_items, true );
+		$items = is_array( $items ) ? $items : array();
+
+		if ( $order->is_paid() ) {
+			$state = array( '#ecfdf5', '#a7f3d0', '#065f46', __( 'Payment received - booking confirmed. Our Travel Concierge will contact you within 24 hours with your itinerary.', 'maldives-packages' ) );
+		} elseif ( $order->has_status( array( 'failed', 'cancelled' ) ) ) {
+			$state = array( '#fef2f2', '#fecaca', '#991b1b', __( 'The payment was not completed. You can try again using the button below.', 'maldives-packages' ) );
+		} else {
+			$state = array( '#fffbeb', '#fde68a', '#92400e', __( 'We are waiting for your payment to be confirmed. You will receive an email as soon as it is.', 'maldives-packages' ) );
+		}
+		$date = function ( $d ) {
+			return $d ? date_i18n( 'd M Y', strtotime( $d ) ) : '';
+		};
+		?>
+		<section class="mpk-thankyou-booking" style="border:1px solid #e2e8f0; border-radius:16px; padding:24px; margin:0 0 28px; background:#ffffff;">
+			<p style="margin:0 0 4px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#64748b;"><?php esc_html_e( 'Booking reference', 'maldives-packages' ); ?></p>
+			<p style="margin:0 0 16px; font-size:24px; font-weight:800; color:#0f172a;"><?php echo esc_html( $booking->reference_id ); ?></p>
+
+			<div style="background:<?php echo esc_attr( $state[0] ); ?>; border:1px solid <?php echo esc_attr( $state[1] ); ?>; color:<?php echo esc_attr( $state[2] ); ?>; border-radius:10px; padding:12px 16px; margin-bottom:18px; font-size:14px; line-height:1.5;">
+				<?php echo esc_html( $state[3] ); ?>
+			</div>
+
+			<?php if ( $items ) : ?>
+				<table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:14px;">
+					<?php foreach ( $items as $it ) : ?>
+						<tr style="border-bottom:1px solid #f1f5f9;">
+							<td style="padding:10px 0; color:#0f172a;">
+								<strong><?php echo esc_html( isset( $it['hotel'] ) ? $it['hotel'] : '' ); ?></strong>
+								<?php if ( ! empty( $it['room'] ) ) : ?>
+									<br><span style="color:#64748b;"><?php echo esc_html( $it['room'] ); ?><?php echo ! empty( $it['location'] ) ? ' &middot; ' . esc_html( $it['location'] ) : ''; ?></span>
+								<?php endif; ?>
+							</td>
+							<td style="padding:10px 0; text-align:right; color:#334155; white-space:nowrap;">
+								<?php echo esc_html( $date( isset( $it['check_in'] ) ? $it['check_in'] : '' ) . ' - ' . $date( isset( $it['check_out'] ) ? $it['check_out'] : '' ) ); ?>
+								<br><span style="color:#64748b;">
+								<?php
+								/* translators: %d: nights */
+								echo esc_html( sprintf( _n( '%d night', '%d nights', (int) $it['nights'], 'maldives-packages' ), (int) $it['nights'] ) );
+								?>
+								</span>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</table>
+			<?php endif; ?>
+
+			<p style="margin:0; font-size:14px; color:#334155;">
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: 1: adults, 2: children, 3: infants, 4: rooms */
+						__( 'Guests: %1$d adults, %2$d children, %3$d infants · Rooms: %4$d', 'maldives-packages' ),
+						(int) $booking->adults,
+						(int) $booking->children,
+						(int) $booking->infants,
+						(int) $booking->rooms_count
+					)
+				);
+				?>
+			</p>
+
+			<?php if ( $order->needs_payment() ) : ?>
+				<p style="margin:16px 0 0;">
+					<a class="button" href="<?php echo esc_url( $order->get_checkout_payment_url() ); ?>"><?php esc_html_e( 'Pay now', 'maldives-packages' ); ?></a>
+				</p>
+			<?php endif; ?>
+		</section>
+		<?php
 	}
 
 	/**

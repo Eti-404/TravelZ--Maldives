@@ -268,6 +268,15 @@ class MPK_Admin {
 			wp_send_json_error( array( 'message' => __( 'Failed to update database record.', 'maldives-packages' ) ), 500 );
 		}
 
+		// Mirror the change on the linked WooCommerce order.
+		if ( $status_changed && class_exists( 'MPK_WooCommerce' ) ) {
+			try {
+				MPK_WooCommerce::sync_order_from_booking( $booking_id, $new_status );
+			} catch ( \Throwable $e ) {
+				error_log( '[MPK] Order sync failed: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+			}
+		}
+
 		// Trigger Automated Customer Status-Update Email (only when the status actually changed)
 		if ( $status_changed && class_exists( 'MPK_Mailer' ) ) {
 			try {
