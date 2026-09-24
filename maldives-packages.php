@@ -1,13 +1,12 @@
 <?php
 /**
  * Plugin Name:       Maldives Packages Booking
- * Plugin URI:        https://travelz.local/maldives-packages
+ * Plugin URI:        https://github.com/kamrulhasan2/TravelZ--Maldives
  * Description:       Luxury Maldives package booking flow for multi-destination island escapes, hotel selection, real-time pricing, and concierge booking inquiries.
  * Version:           1.1.9
  * Requires at least: 6.0
  * Requires PHP:      7.4
- * Author:            Travel Z Team
- * Author URI:        https://travelz.local
+ * Author:            Kamrul Hasan & Anika Eti
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       maldives-packages
@@ -57,3 +56,28 @@ function mpk_init_plugin() {
 	return MPK_Plugin::get_instance();
 }
 add_action( 'plugins_loaded', 'mpk_init_plugin' );
+
+/**
+ * Show "Developed by" credits on the Plugins screen.
+ *
+ * @param string[] $meta Plugin row meta links.
+ * @param string   $file Plugin basename.
+ * @return string[]
+ */
+function mpk_plugin_row_meta( $meta, $file ) {
+	if ( MPK_PLUGIN_BASENAME !== $file ) {
+		return $meta;
+	}
+	foreach ( $meta as $i => $item ) {
+		if ( false !== strpos( $item, 'Kamrul Hasan' ) ) {
+			$meta[ $i ] = sprintf(
+				/* translators: 1: first developer, 2: second developer. */
+				esc_html__( 'Developed by %1$s & %2$s', 'maldives-packages' ),
+				'<strong>Kamrul Hasan</strong>',
+				'<strong>Anika Eti</strong>'
+			);
+		}
+	}
+	return $meta;
+}
+add_filter( 'plugin_row_meta', 'mpk_plugin_row_meta', 10, 2 );
