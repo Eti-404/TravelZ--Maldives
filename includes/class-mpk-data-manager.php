@@ -418,6 +418,14 @@ class MPK_Data_Manager {
 		if ( ! isset( $merged['policies'] ) || ! is_array( $merged['policies'] ) ) {
 			$merged['policies'] = array();
 		}
+
+		// WooCommerce checkout: bank details come from WooCommerce -> Payments -> Direct bank transfer.
+		if ( class_exists( 'MPK_WooCommerce' ) ) {
+			$bacs = MPK_WooCommerce::bacs_account();
+			if ( $bacs ) {
+				$merged = array_merge( $merged, $bacs );
+			}
+		}
 		if ( ! empty( $merged['cancellation_policy'] ) ) {
 			$merged['policies']['cancellation'] = $merged['cancellation_policy'];
 		}

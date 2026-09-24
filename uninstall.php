@@ -81,8 +81,15 @@ if ( ! is_wp_error( $mpk_terms ) ) {
 	}
 }
 
-// 6. Delete options and rate-limit transients.
-foreach ( array( 'mpk_settings', 'mpk_locations', 'mpk_hotels', 'mpk_plugin_version', 'mpk_data_seeded', 'mpk_data_seeded_version', 'mpk_db_version', 'mpk_seeded_hotel_ids', 'mpk_seeded_location_ids', 'mpk_delete_data_on_uninstall' ) as $mpk_opt ) {
+// 6. Delete the hidden WooCommerce helper product and the cleanup event.
+$mpk_wc_product = (int) get_option( 'mpk_wc_product_id' );
+if ( $mpk_wc_product && 'product' === get_post_type( $mpk_wc_product ) ) {
+	wp_delete_post( $mpk_wc_product, true );
+}
+wp_clear_scheduled_hook( 'mpk_cancel_unpaid_orders' );
+
+// 7. Delete options and rate-limit transients.
+foreach ( array( 'mpk_wc_product_id', 'mpk_settings', 'mpk_locations', 'mpk_hotels', 'mpk_plugin_version', 'mpk_data_seeded', 'mpk_data_seeded_version', 'mpk_db_version', 'mpk_seeded_hotel_ids', 'mpk_seeded_location_ids', 'mpk_delete_data_on_uninstall' ) as $mpk_opt ) {
 	delete_option( $mpk_opt );
 }
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\_transient\_mpk\_rl\_%' OR option_name LIKE '\_transient\_timeout\_mpk\_rl\_%'" ); // phpcs:ignore

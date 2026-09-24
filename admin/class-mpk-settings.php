@@ -216,6 +216,9 @@ class MPK_Settings {
 			$settings['support_phone']     = isset( $_POST['support_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['support_phone'] ) ) : $defaults['support_phone'];
 			$settings['office_hours']      = isset( $_POST['office_hours'] ) ? sanitize_text_field( wp_unslash( $_POST['office_hours'] ) ) : $defaults['office_hours'];
 			$settings['wc_checkout']       = ! empty( $_POST['wc_checkout'] ) ? 1 : 0;
+			if ( isset( $_POST['unpaid_cancel_hours'] ) ) {
+				$settings['unpaid_cancel_hours'] = min( 720, absint( $_POST['unpaid_cancel_hours'] ) );
+			}
 		}
 
 		update_option( 'mpk_settings', $settings );
@@ -544,6 +547,15 @@ class MPK_Settings {
 								<p class="description" style="margin-top:6px;">
 									<?php esc_html_e( 'The payment cards in the booking wizard show the payment methods enabled in WooCommerce → Settings → Payments, and every booking creates a WooCommerce order. Bank transfer / Cash on delivery (Office visit) / Cheque put the order On hold; online methods such as SSLCommerz take the traveler to the payment page.', 'maldives-packages' ); ?>
 								</p>
+								<p style="margin:12px 0 0;">
+									<label for="unpaid_cancel_hours" style="font-weight:600;"><?php esc_html_e( 'Cancel unpaid online bookings after', 'maldives-packages' ); ?></label>
+									<input name="unpaid_cancel_hours" type="number" min="0" max="720" step="1" id="unpaid_cancel_hours" value="<?php echo esc_attr( MPK_WooCommerce::unpaid_cancel_hours() ); ?>" style="width:80px;" />
+									<?php esc_html_e( 'hours (0 = never)', 'maldives-packages' ); ?>
+								</p>
+								<p class="description"><?php esc_html_e( 'Applies to online payments (e.g. SSLCommerz) that were started but never completed. Bank transfer / office visit orders are never cancelled automatically.', 'maldives-packages' ); ?></p>
+								<?php if ( MPK_WooCommerce::bacs_account() ) : ?>
+									<p class="description" style="margin-top:8px; color:#1d4ed8;"><?php esc_html_e( 'Bank details shown to travelers are taken from WooCommerce → Payments → Direct bank transfer (the bank fields below are not used).', 'maldives-packages' ); ?></p>
+								<?php endif; ?>
 								<p style="margin:10px 0 0;">
 									<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=checkout' ) ); ?>"><?php esc_html_e( 'Manage payment methods', 'maldives-packages' ); ?></a>
 								</p>

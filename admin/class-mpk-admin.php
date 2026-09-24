@@ -584,8 +584,22 @@ class MPK_Admin {
 									$payment_label = ucfirst( $b->payment_method );
 								}
 
+								// Linked WooCommerce order
+								$order_info = null;
+								if ( ! empty( $b->order_id ) && function_exists( 'wc_get_order' ) ) {
+									$wc_order = wc_get_order( (int) $b->order_id );
+									if ( $wc_order ) {
+										$order_info = array(
+											'number' => $wc_order->get_order_number(),
+											'url'    => $wc_order->get_edit_order_url(),
+											'status' => wc_get_order_status_name( $wc_order->get_status() ),
+										);
+									}
+								}
+
 								// JSON Data for Modal
 								$modal_data = array(
+									'order'             => $order_info,
 									'id'                => (int) $b->id,
 									'reference_id'      => $b->reference_id,
 									'lead_name'         => $b->lead_name,
@@ -694,6 +708,12 @@ class MPK_Admin {
 										<span class="mpk-payment-pill mpk-pay-<?php echo esc_attr( strtolower( $b->payment_method ) ); ?>">
 											<?php echo esc_html( $payment_label ); ?>
 										</span>
+										<?php if ( $order_info ) : ?>
+											<div class="mpk-cell-sub" style="margin-top:6px;">
+												<a href="<?php echo esc_url( $order_info['url'] ); ?>">#<?php echo esc_html( $order_info['number'] ); ?></a>
+												&middot; <?php echo esc_html( $order_info['status'] ); ?>
+											</div>
+										<?php endif; ?>
 									</td>
 
 									<!-- Status -->
@@ -835,6 +855,10 @@ class MPK_Admin {
 							<div class="mpk-modal-info-item">
 								<span class="mpk-modal-label">Grand Total & Payment Method</span>
 								<span class="mpk-modal-val" id="mpk-modal-pricing" style="color: #0284c7; font-weight: 700;">—</span>
+							</div>
+							<div class="mpk-modal-info-item" id="mpk-modal-order-wrap" style="display: none;">
+								<span class="mpk-modal-label">WooCommerce Order</span>
+								<span class="mpk-modal-val"><a href="#" id="mpk-modal-order-link">—</a> <span id="mpk-modal-order-status" style="color:#64748b; font-weight:500;"></span></span>
 							</div>
 						</div>
 					</div>
@@ -1515,6 +1539,18 @@ class MPK_Admin {
 					document.getElementById('mpk-modal-dates').textContent = data.check_in + ' → ' + data.check_out + ' (' + data.nights + ' nights)';
 					document.getElementById('mpk-modal-guests').textContent = data.adults + ' Adults, ' + data.children + ' Children, ' + data.infants + ' Infants (' + data.rooms_count + ' Rooms)';
 					document.getElementById('mpk-modal-pricing').textContent = data.grand_total + ' (' + data.payment_method + ')';
+					var orderWrap = document.getElementById('mpk-modal-order-wrap');
+					if (orderWrap) {
+						if (data.order && data.order.url) {
+							var orderLink = document.getElementById('mpk-modal-order-link');
+							orderLink.href = data.order.url;
+							orderLink.textContent = '#' + data.order.number;
+							document.getElementById('mpk-modal-order-status').textContent = '· ' + data.order.status;
+							orderWrap.style.display = '';
+						} else {
+							orderWrap.style.display = 'none';
+						}
+					}
 
 					document.getElementById('mpk-modal-notes').textContent = data.special_requests || 'No special requests submitted by customer.';
 

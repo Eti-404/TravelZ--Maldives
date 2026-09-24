@@ -674,6 +674,7 @@ class MPK_Ajax_Handler {
 		$mail_payload['id']           = $result['id'];
 		$mail_payload['reference_id'] = $result['reference_id'];
 		$mail_payload['pricing']      = $trip['pricing'];
+		$mail_payload['payment_url']  = $payment_url;
 
 		if ( class_exists( 'MPK_Mailer' ) ) {
 			try {
@@ -898,6 +899,15 @@ class MPK_Ajax_Handler {
 
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'mpk_bookings';
+
+		// Cancel the linked unpaid WooCommerce order (paid orders are kept as records)
+		if ( class_exists( 'MPK_WooCommerce' ) ) {
+			try {
+				MPK_WooCommerce::detach_order( $booking_id );
+			} catch ( \Throwable $e ) {
+				error_log( '[MPK] Order detach failed: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+			}
+		}
 
 		// Clean up attached passport copy file (only files inside the private passport folder)
 		$passport_url = $wpdb->get_var( $wpdb->prepare( "SELECT passport_file_url FROM {$table_name} WHERE id = %d", $booking_id ) );

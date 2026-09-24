@@ -72,6 +72,8 @@ class MPK_Plugin {
 	 * Plugin deactivation routine.
 	 */
 	public static function deactivate() {
+		wp_clear_scheduled_hook( 'mpk_cancel_unpaid_orders' );
+
 		// Flush rewrite rules cleanly on deactivation.
 		flush_rewrite_rules();
 	}

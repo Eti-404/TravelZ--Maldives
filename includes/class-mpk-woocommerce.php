@@ -54,6 +54,178 @@ class MPK_WooCommerce {
 		// Booking summary on WooCommerce's "Order received" page (after online payment).
 		add_action( 'woocommerce_before_thankyou', array( $this, 'render_thankyou_booking' ) );
 		add_filter( 'woocommerce_thankyou_order_received_text', array( $this, 'thankyou_text' ), 10, 2 );
+
+		// Booking details box on the WooCommerce order screen (legacy + HPOS).
+		add_action( 'add_meta_boxes', array( $this, 'register_order_meta_box' ), 10, 2 );
+
+		// Cancel online booking orders that were never paid.
+		add_action( 'mpk_cancel_unpaid_orders', array( __CLASS__, 'cancel_unpaid_orders' ) );
+		add_action( 'init', array( __CLASS__, 'schedule_cleanup' ) );
+	}
+
+	/**
+	 * WooCommerce is available and "Collect booking payments through WooCommerce" is on.
+	 *
+	 * @return bool
+	 */
+	public static function wc_mode() {
+		if ( ! self::is_available() ) {
+			return false;
+		}
+		$s = get_option( 'mpk_settings', array() );
+		return ! is_array( $s ) || ! isset( $s['wc_checkout'] ) || ! empty( $s['wc_checkout'] );
+	}
+
+	/**
+	 * First WooCommerce "Direct bank transfer" account, mapped to the plugin's bank fields.
+	 *
+	 * @return array Empty when no account is configured in WooCommerce.
+	 */
+	public static function bacs_account() {
+		if ( ! self::wc_mode() ) {
+			return array();
+		}
+		foreach ( (array) get_option( 'woocommerce_bacs_accounts', array() ) as $acc ) {
+			if ( ! is_array( $acc ) || empty( $acc['account_number'] ) && empty( $acc['iban'] ) ) {
+				continue;
+			}
+			$routing = array_filter( array( isset( $acc['bic'] ) ? $acc['bic'] : '', isset( $acc['sort_code'] ) ? $acc['sort_code'] : '' ) );
+			return array(
+				'bank_name'         => isset( $acc['bank_name'] ) ? (string) $acc['bank_name'] : '',
+				'bank_account_name' => isset( $acc['account_name'] ) ? (string) $acc['account_name'] : '',
+				'bank_account_no'   => ! empty( $acc['account_number'] ) ? (string) $acc['account_number'] : (string) $acc['iban'],
+				'bank_swift'        => implode( ' / ', $routing ),
+			);
+		}
+		return array();
+	}
+
+	/**
+	 * Hours after which an unpaid online booking order is cancelled (0 = never).
+	 *
+	 * @return int
+	 */
+	public static function unpaid_cancel_hours() {
+		$s = get_option( 'mpk_settings', array() );
+		return isset( $s['unpaid_cancel_hours'] ) && '' !== $s['unpaid_cancel_hours'] ? max( 0, (int) $s['unpaid_cancel_hours'] ) : 24;
+	}
+
+	/**
+	 * Ensure the hourly cleanup event exists.
+	 */
+	public static function schedule_cleanup() {
+		if ( ! wp_next_scheduled( 'mpk_cancel_unpaid_orders' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'mpk_cancel_unpaid_orders' );
+		}
+	}
+
+	/**
+	 * Cron: cancel online booking orders still unpaid after the configured time.
+	 * The status sync then cancels the booking and emails the traveler.
+	 */
+	public static function cancel_unpaid_orders() {
+		$hours = self::unpaid_cancel_hours();
+		if ( ! self::wc_mode() || $hours < 1 || ! function_exists( 'wc_get_orders' ) ) {
+			return;
+		}
+		$orders = wc_get_orders(
+			array(
+				'status'       => array( 'pending' ),
+				'created_via'  => 'mpk_booking',
+				'date_created' => '<' . ( time() - $hours * HOUR_IN_SECONDS ),
+				'limit'        => 50,
+			)
+		);
+		foreach ( $orders as $order ) {
+			if ( ! $order->get_meta( self::META_BOOKING_ID ) || ! $order->needs_payment() ) {
+				continue;
+			}
+			/* translators: %d: hours */
+			$order->update_status( 'cancelled', sprintf( __( 'Unpaid booking order cancelled automatically after %d hours.', 'maldives-packages' ), $hours ) );
+		}
+	}
+
+	/**
+	 * A booking is being deleted: cancel its unpaid order, keep paid orders as records.
+	 *
+	 * @param int $booking_id Booking ID.
+	 */
+	public static function detach_order( $booking_id ) {
+		if ( ! self::is_available() ) {
+			return;
+		}
+		$booking = MPK_Booking_Manager::get_booking_by_id( $booking_id );
+		$order   = ( $booking && ! empty( $booking->order_id ) ) ? wc_get_order( (int) $booking->order_id ) : null;
+		if ( ! $order ) {
+			return;
+		}
+		self::$syncing = true;
+		try {
+			if ( $order->has_status( array( 'pending', 'on-hold' ) ) ) {
+				/* translators: %s: booking reference */
+				$order->update_status( 'cancelled', sprintf( __( 'Linked booking %s was deleted - unpaid order cancelled.', 'maldives-packages' ), $booking->reference_id ) );
+			} else {
+				/* translators: %s: booking reference */
+				$order->add_order_note( sprintf( __( 'Linked booking %s was deleted from the bookings dashboard.', 'maldives-packages' ), $booking->reference_id ) );
+			}
+		} finally {
+			self::$syncing = false;
+		}
+	}
+
+	/**
+	 * Add the "Maldives Booking" box to booking orders only.
+	 *
+	 * @param string $screen_id     Current screen / post type.
+	 * @param mixed  $post_or_order WP_Post (legacy) or WC_Order (HPOS).
+	 */
+	public function register_order_meta_box( $screen_id, $post_or_order = null ) {
+		$order = $post_or_order instanceof WP_Post ? wc_get_order( $post_or_order->ID ) : $post_or_order;
+		if ( ! $order instanceof WC_Order || ! $order->get_meta( self::META_BOOKING_ID ) ) {
+			return;
+		}
+		add_meta_box( 'mpk-order-booking', __( 'Maldives Booking', 'maldives-packages' ), array( $this, 'render_order_meta_box' ), $screen_id, 'side', 'high' );
+	}
+
+	/**
+	 * Order screen box content.
+	 *
+	 * @param mixed $post_or_order WP_Post (legacy) or WC_Order (HPOS).
+	 */
+	public function render_order_meta_box( $post_or_order ) {
+		$order   = $post_or_order instanceof WP_Post ? wc_get_order( $post_or_order->ID ) : $post_or_order;
+		$booking = $order ? self::booking_for_order( $order ) : null;
+		if ( ! $booking ) {
+			echo '<p>' . esc_html__( 'The linked booking no longer exists.', 'maldives-packages' ) . '</p>';
+			return;
+		}
+		$date  = function ( $d ) {
+			return $d ? date_i18n( 'd M Y', strtotime( $d ) ) : '—';
+		};
+		$rows  = array(
+			__( 'Reference', 'maldives-packages' ) => '<strong>' . esc_html( $booking->reference_id ) . '</strong>',
+			__( 'Status', 'maldives-packages' )    => class_exists( 'MPK_Admin' ) ? MPK_Admin::get_status_badge( $booking->status ) : esc_html( $booking->status ),
+			__( 'Stay', 'maldives-packages' )      => esc_html( $date( $booking->check_in ) . ' → ' . $date( $booking->check_out ) ),
+			__( 'Guests', 'maldives-packages' )    => esc_html( sprintf( '%d A · %d C · %d I · %d R', $booking->adults, $booking->children, $booking->infants, $booking->rooms_count ) ),
+			__( 'Passport', 'maldives-packages' )  => esc_html( $booking->passport_no ? $booking->passport_no : '—' ),
+		);
+		echo '<table style="width:100%; font-size:12px; border-collapse:collapse;">';
+		foreach ( $rows as $label => $val ) {
+			echo '<tr><td style="padding:4px 0; color:#646970; width:38%; vertical-align:top;">' . esc_html( $label ) . '</td><td style="padding:4px 0;">' . $val . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput -- values escaped above.
+		}
+		echo '</table>';
+
+		if ( ! empty( $booking->passport_file_url ) && class_exists( 'MPK_Ajax_Handler' ) ) {
+			echo '<p style="margin:10px 0 0;"><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( MPK_Ajax_Handler::get_passport_view_url( $booking->id ) ) . '">' . esc_html__( 'View passport copy', 'maldives-packages' ) . '</a></p>';
+		}
+		$dash = add_query_arg(
+			array(
+				'page' => 'maldives-packages',
+				's'    => $booking->reference_id,
+			),
+			admin_url( 'admin.php' )
+		);
+		echo '<p style="margin:10px 0 0;"><a href="' . esc_url( $dash ) . '">' . esc_html__( 'Open in bookings dashboard →', 'maldives-packages' ) . '</a></p>';
 	}
 
 	/**
@@ -62,11 +234,7 @@ class MPK_WooCommerce {
 	 * @return bool
 	 */
 	public static function controls_currency() {
-		if ( ! self::is_available() || ! function_exists( 'get_woocommerce_currency' ) ) {
-			return false;
-		}
-		$s = get_option( 'mpk_settings', array() );
-		return ! is_array( $s ) || ! isset( $s['wc_checkout'] ) || ! empty( $s['wc_checkout'] );
+		return function_exists( 'get_woocommerce_currency' ) && self::wc_mode();
 	}
 
 	/**
@@ -100,7 +268,6 @@ class MPK_WooCommerce {
 				'processing' => 'Approved',
 				'completed'  => 'Approved',
 				'cancelled'  => 'Cancelled',
-				'failed'     => 'Cancelled',
 				'refunded'   => 'Cancelled',
 			)
 		);
@@ -133,6 +300,15 @@ class MPK_WooCommerce {
 			return;
 		}
 		MPK_Booking_Manager::update_status( $booking_id, $new );
+
+		// Booking email from the plugin (payment emails come from WooCommerce).
+		if ( in_array( $new, array( 'Approved', 'Cancelled' ), true ) && class_exists( 'MPK_Mailer' ) ) {
+			try {
+				MPK_Mailer::send_status_update_email( $booking_id, $new );
+			} catch ( \Throwable $e ) {
+				error_log( '[MPK] Status email failed: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+			}
+		}
 		do_action( 'mpk_booking_status_synced_from_order', $booking_id, $new, $order );
 	}
 

@@ -102,13 +102,14 @@ class MPK_Mailer {
 			'site_name'         => $site_name,
 			'items'             => ! empty( $data['booking_items'] ) && is_array( $data['booking_items'] ) ? $data['booking_items'] : array(),
 			'pricing'           => ! empty( $data['pricing'] ) && is_array( $data['pricing'] ) ? $data['pricing'] : array(),
+			'payment_url'       => ! empty( $data['payment_url'] ) ? esc_url_raw( $data['payment_url'] ) : '',
 		);
 
 		// 1. Dispatch Customer Confirmation Email
 		if ( ! empty( $lead_email ) && is_email( $lead_email ) ) {
 			$cust_subject = sprintf(
 				/* translators: 1: Reference ID, 2: Hotel Name */
-				__( 'Booking Confirmation: %1$s - %2$s', 'maldives-packages' ),
+				$view_data['payment_url'] ? __( 'Complete your payment: %1$s - %2$s', 'maldives-packages' ) : __( 'Booking Confirmation: %1$s - %2$s', 'maldives-packages' ),
 				$reference_id,
 				$hotel_name
 			);
@@ -286,10 +287,10 @@ class MPK_Mailer {
 				<?php echo esc_html( $d['site_name'] ); ?> &bull; MALDIVES ESCAPES
 			</div>
 			<h1 style="margin:0; font-size:24px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">
-				Booking Confirmation
+				<?php echo ! empty( $d['payment_url'] ) ? 'Complete Your Payment' : 'Booking Confirmation'; ?>
 			</h1>
 			<p style="margin:8px 0 0 0; font-size:14px; color:#94a3b8;">
-				Thank you for choosing us for your island getaway.
+				<?php echo ! empty( $d['payment_url'] ) ? 'Your booking is reserved - finish the payment to confirm it.' : 'Thank you for choosing us for your island getaway.'; ?>
 			</p>
 		</td>
 	</tr>
@@ -412,6 +413,20 @@ class MPK_Mailer {
 					</td>
 				</tr>
 			</table>
+
+			<?php if ( ! empty( $d['payment_url'] ) ) : ?>
+			<!-- Online payment link -->
+			<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; margin-bottom:24px;">
+				<tr>
+					<td style="padding:20px; text-align:center;">
+						<div style="font-size:14px; color:#075985; line-height:1.6; margin-bottom:14px;">
+							If your payment was not completed, you can pay securely using the button below.
+						</div>
+						<a href="<?php echo esc_url( $d['payment_url'] ); ?>" style="display:inline-block; background-color:#0284c7; color:#ffffff; text-decoration:none; font-weight:700; font-size:15px; padding:12px 28px; border-radius:999px;">Complete Payment</a>
+					</td>
+				</tr>
+			</table>
+			<?php endif; ?>
 
 			<?php if ( false !== stripos( $d['payment_method'], 'bank' ) ) : ?>
 			<!-- Wire Transfer Details -->
