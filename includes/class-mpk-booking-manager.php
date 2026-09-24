@@ -23,7 +23,7 @@ class MPK_Booking_Manager {
 	/**
 	 * Schema version. Bump whenever the CREATE TABLE definition changes.
 	 */
-	const DB_VERSION = '1.2.0';
+	const DB_VERSION = '1.3.0';
 
 	/**
 	 * Max lengths of varchar columns (keeps inserts from failing in MySQL strict mode).
@@ -86,9 +86,11 @@ class MPK_Booking_Manager {
 			grand_total decimal(10,2) DEFAULT 0.00 NOT NULL,
 			payment_method varchar(50) DEFAULT '' NOT NULL,
 			status varchar(20) DEFAULT 'Pending' NOT NULL,
+			order_id bigint(20) DEFAULT 0 NOT NULL,
 			created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			PRIMARY KEY  (id),
-			UNIQUE KEY reference_id (reference_id)
+			UNIQUE KEY reference_id (reference_id),
+			KEY order_id (order_id)
 		) {$charset_collate};";
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -256,6 +258,39 @@ class MPK_Booking_Manager {
 		return array(
 			'id'           => $wpdb->insert_id,
 			'reference_id' => $reference_id,
+		);
+	}
+
+	/**
+	 * Link a booking to its WooCommerce order.
+	 *
+	 * @param int $id       Booking record ID.
+	 * @param int $order_id WooCommerce order ID.
+	 * @return bool
+	 */
+	public static function set_order_id( $id, $order_id ) {
+		global $wpdb;
+		return false !== $wpdb->update(
+			self::get_table_name(),
+			array( 'order_id' => absint( $order_id ) ),
+			array( 'id' => absint( $id ) ),
+			array( '%d' ),
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * Get a booking record by its WooCommerce order ID.
+	 *
+	 * @param int $order_id WooCommerce order ID.
+	 * @return object|null
+	 */
+	public static function get_booking_by_order_id( $order_id ) {
+		global $wpdb;
+		$table_name = self::get_table_name();
+
+		return $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table_name} WHERE order_id = %d LIMIT 1", absint( $order_id ) )
 		);
 	}
 

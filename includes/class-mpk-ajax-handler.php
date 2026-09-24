@@ -443,8 +443,10 @@ class MPK_Ajax_Handler {
 			);
 		}
 
-		$payment_method = strtolower( $payment_method );
-		if ( ! in_array( $payment_method, self::get_allowed_payment_methods(), true ) ) {
+		// With WooCommerce checkout the traveler picks the gateway on the "Pay for order" page.
+		$use_wc         = class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::is_enabled();
+		$payment_method = $use_wc ? 'woocommerce' : strtolower( $payment_method );
+		if ( ! $use_wc && ! in_array( $payment_method, self::get_allowed_payment_methods(), true ) ) {
 			wp_send_json_error(
 				array(
 					'field'   => 'payment_method',
@@ -627,7 +629,31 @@ class MPK_Ajax_Handler {
 			);
 		}
 
-		// 6.1 Trigger automated emails (Customer Confirmation & Admin Alert)
+		// 6.1 WooCommerce: create the order that will collect payment (rolled back on failure)
+		$payment_url = '';
+		$order_id    = 0;
+		if ( $use_wc ) {
+			$order = MPK_WooCommerce::create_order( $result['id'], $result['reference_id'], $booking_data, $trip );
+			if ( is_wp_error( $order ) ) {
+				error_log( '[MPK] WooCommerce order failed: ' . $order->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+				MPK_Booking_Manager::delete_booking( $result['id'] );
+				$orphan = self::resolve_passport_path( $passport_file_url );
+				if ( $orphan ) {
+					wp_delete_file( $orphan );
+				}
+				wp_send_json_error(
+					array(
+						'message' => __( 'We could not start the payment for your booking. Please try again or contact us.', 'maldives-packages' ),
+					),
+					500
+				);
+			}
+			$order_id    = $order->get_id();
+			$payment_url = $order->get_checkout_payment_url();
+			MPK_Booking_Manager::set_order_id( $result['id'], $order_id );
+		}
+
+		// 6.2 Trigger automated emails (Customer Confirmation & Admin Alert)
 		$mail_payload                 = $booking_data;
 		$mail_payload['id']           = $result['id'];
 		$mail_payload['reference_id'] = $result['reference_id'];
@@ -651,6 +677,8 @@ class MPK_Ajax_Handler {
 				'reference_id' => $result['reference_id'],
 				'booking_id'   => $result['id'],
 				'grand_total'  => round( $grand_total, 2 ),
+				'order_id'     => $order_id,
+				'payment_url'  => $payment_url,
 				'message'      => __( 'Booking saved successfully', 'maldives-packages' ),
 			)
 		);

@@ -156,6 +156,8 @@ class MPK_Frontend {
 
 		$locations = MPK_Data_Manager::get_locations();
 		$hero_img  = MPK_PLUGIN_URL . 'assets/images/maldives-hero.jpg';
+		// WooCommerce checkout replaces the built-in payment + confirmation steps.
+		$wc_checkout = class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::is_enabled();
 
 		ob_start();
 		?>
@@ -225,6 +227,18 @@ class MPK_Frontend {
 							</div>
 						</div>
 
+						<?php if ( $wc_checkout ) : ?>
+						<!-- Step 4 (WooCommerce checkout) -->
+						<div class="mpk-step-column" data-step="4">
+							<button type="button" class="mpk-step-item">
+								<div class="mpk-step-circle">4</div>
+								<div class="mpk-step-text-wrap">
+									<span class="mpk-step-label">Payment</span>
+									<span class="mpk-step-sub">Secure checkout</span>
+								</div>
+							</button>
+						</div>
+						<?php else : ?>
 						<!-- Step 4 -->
 						<div class="mpk-step-column" data-step="4">
 							<button type="button" class="mpk-step-item">
@@ -249,6 +263,7 @@ class MPK_Frontend {
 								</div>
 							</button>
 						</div>
+						<?php endif; ?>
 
 					</div>
 				</div>
@@ -705,6 +720,7 @@ class MPK_Frontend {
 						</label>
 					</section>
 
+					<?php if ( ! $wc_checkout ) : ?>
 					<!-- STEP 4: PAYMENT SELECTION -->
 					<section class="mpk-step-pane" id="mpk-pane-4" data-step="4">
 						<div class="mpk-section-header mpk-section-header-stacked">
@@ -814,6 +830,7 @@ class MPK_Frontend {
 							</div>
 						</div>
 					</section>
+					<?php endif; ?>
 
 					<!-- BOTTOM STEP NAVIGATION (FLOATING FOOTER BAR) -->
 					<div class="mpk-step-nav" id="mpk-step-nav">

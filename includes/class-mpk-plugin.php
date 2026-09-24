@@ -96,6 +96,10 @@ class MPK_Plugin {
 		// Load Automated Email Notifications Mailer.
 		require_once MPK_PLUGIN_DIR . 'includes/class-mpk-mailer.php';
 
+		// Load WooCommerce payment bridge (inactive unless WooCommerce is available).
+		require_once MPK_PLUGIN_DIR . 'includes/class-mpk-woocommerce.php';
+		new MPK_WooCommerce();
+
 		// Load AJAX Submission Handler.
 		require_once MPK_PLUGIN_DIR . 'includes/class-mpk-ajax-handler.php';
 		new MPK_Ajax_Handler();

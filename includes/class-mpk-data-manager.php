@@ -555,6 +555,7 @@ class MPK_Data_Manager {
 			'hotels'     => self::get_hotels(),
 			'settings'   => self::get_settings(),
 			'currency'   => self::get_currency(),
+			'wc_checkout' => class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::is_enabled(),
 			'occupancy'  => class_exists( 'MPK_Ajax_Handler' ) ? MPK_Ajax_Handler::get_occupancy_rules() : array( 'max_adults' => 3, 'max_guests' => 4, 'max_infants' => 2 ),
 		);
 	}

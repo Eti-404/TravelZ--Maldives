@@ -124,6 +124,7 @@ class MPK_Settings {
 			'support_email'       => 'concierge@example.com',
 			'support_phone'       => '+00 123 456789',
 			'office_hours'        => 'Sun–Thu, 9:00 AM – 6:00 PM',
+			'wc_checkout'         => 1,
 		);
 	}
 
@@ -203,6 +204,7 @@ class MPK_Settings {
 			$settings['support_email']     = isset( $_POST['support_email'] ) ? sanitize_email( wp_unslash( $_POST['support_email'] ) ) : $defaults['support_email'];
 			$settings['support_phone']     = isset( $_POST['support_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['support_phone'] ) ) : $defaults['support_phone'];
 			$settings['office_hours']      = isset( $_POST['office_hours'] ) ? sanitize_text_field( wp_unslash( $_POST['office_hours'] ) ) : $defaults['office_hours'];
+			$settings['wc_checkout']       = ! empty( $_POST['wc_checkout'] ) ? 1 : 0;
 		}
 
 		update_option( 'mpk_settings', $settings );
@@ -507,6 +509,30 @@ class MPK_Settings {
 
 					<?php elseif ( 'payment' === $active_tab ) : ?>
 						<!-- TAB 4: PAYMENT & CONCIERGE -->
+						<?php
+						$mpk_wc_ready = class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::is_available();
+						$mpk_wc_on    = ! isset( $s['wc_checkout'] ) || ! empty( $s['wc_checkout'] );
+						?>
+						<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 20px; margin-bottom:24px;">
+							<h3 style="margin:0 0 8px; color:#0f172a;"><?php esc_html_e( 'WooCommerce Checkout', 'maldives-packages' ); ?></h3>
+							<?php if ( $mpk_wc_ready ) : ?>
+								<label for="wc_checkout" style="font-weight:600;">
+									<input name="wc_checkout" type="checkbox" id="wc_checkout" value="1" <?php checked( $mpk_wc_on ); ?> />
+									<?php esc_html_e( 'Collect booking payments through WooCommerce', 'maldives-packages' ); ?>
+								</label>
+								<p class="description" style="margin-top:6px;">
+									<?php esc_html_e( 'Each booking creates a WooCommerce order and the traveler is sent to the "Pay for order" page. Payment methods (Bank transfer, Cash / office visit, SSLCommerz ...) are managed in WooCommerce → Settings → Payments.', 'maldives-packages' ); ?>
+								</p>
+								<p style="margin:10px 0 0;">
+									<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=checkout' ) ); ?>"><?php esc_html_e( 'Manage payment methods', 'maldives-packages' ); ?></a>
+								</p>
+							<?php else : ?>
+								<input type="hidden" name="wc_checkout" value="<?php echo $mpk_wc_on ? '1' : ''; ?>" />
+								<p class="description" style="margin:0;">
+									<?php esc_html_e( 'WooCommerce is not active (or has no Checkout page). Bookings use the built-in Office Visit / Bank Transfer options below.', 'maldives-packages' ); ?>
+								</p>
+							<?php endif; ?>
+						</div>
 						<h3 style="margin-top: 0; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
 							<?php esc_html_e( 'Bank Details & Luxury Concierge Desk', 'maldives-packages' ); ?>
 						</h3>

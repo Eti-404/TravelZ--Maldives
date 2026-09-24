@@ -567,7 +567,9 @@ class MPK_Admin {
 
 								// Payment Method label
 								$payment_label = 'Office Visit';
-								if ( 'bank' === strtolower( $b->payment_method ) ) {
+								if ( 'woocommerce' === strtolower( $b->payment_method ) ) {
+									$payment_label = 'Online Checkout';
+								} elseif ( 'bank' === strtolower( $b->payment_method ) ) {
 									$payment_label = 'Bank Transfer';
 								} elseif ( ! empty( $b->payment_method ) ) {
 									$payment_label = ucfirst( $b->payment_method );

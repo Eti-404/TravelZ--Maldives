@@ -575,6 +575,11 @@
 		return latestCheckOut || getTomorrowStr();
 	}
 
+	// WooCommerce checkout: the booking is submitted from step 3 and payment happens on WooCommerce's "Pay for order" page
+	var WC_CHECKOUT = !!(window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.wc_checkout);
+	var SUBMIT_STEP = WC_CHECKOUT ? 3 : 4;
+	var LAST_STEP = WC_CHECKOUT ? 3 : 5;
+
 	// Step Validation matching Route logic
 	function canContinue() {
 		if (state.step === 1) {
@@ -631,7 +636,9 @@
 		}
 
 		if (nextLabel) {
-			if (state.step === 3) {
+			if (state.step === 3 && WC_CHECKOUT) {
+				nextLabel.textContent = isSubmitting ? 'Submitting...' : 'Proceed to Payment';
+			} else if (state.step === 3) {
 				nextLabel.textContent = 'Confirm Booking';
 			} else if (state.step === 4) {
 				nextLabel.textContent = isSubmitting ? 'Submitting...' : 'Continue';
@@ -645,8 +652,8 @@
 
 		// A failed submission stays visible (red) until the user changes step / payment or retries
 		var hintWrap = hint ? hint.parentNode : null;
-		if (hintWrap) hintWrap.classList.toggle('mpk-has-error', !!(state.submitError && state.step === 4));
-		if (hint && !isSubmitting && state.submitError && state.step === 4) {
+		if (hintWrap) hintWrap.classList.toggle('mpk-has-error', !!(state.submitError && state.step === SUBMIT_STEP));
+		if (hint && !isSubmitting && state.submitError && state.step === SUBMIT_STEP) {
 			hint.textContent = state.submitError;
 			hint.style.color = '#dc2626';
 			return;
@@ -666,7 +673,7 @@
 	}
 
 	function setStep(newStep) {
-		if (newStep < 1 || newStep > 5) return;
+		if (newStep < 1 || newStep > LAST_STEP) return;
 		state.submitError = '';
 		state.step = newStep;
 
@@ -2081,6 +2088,18 @@
 		})
 		.then(function (result) {
 			isSubmitting = false;
+			if (result && result.success && result.data && result.data.payment_url) {
+				// WooCommerce checkout: continue on the "Pay for order" page
+				isSubmitting = true;
+				if (nextLabel) nextLabel.innerHTML = '<span class="mpk-inline-spinner"></span> Redirecting to payment...';
+				window.location.href = result.data.payment_url;
+				return;
+			}
+			if (WC_CHECKOUT) {
+				state.submitError = (result && result.data && result.data.message) ? result.data.message : 'Could not start the payment. Please try again.';
+				updateNavState();
+				return;
+			}
 			if (result && result.success && result.data && result.data.reference_id) {
 				state.confirmationCode = result.data.reference_id;
 				state.serverTotal = (typeof result.data.grand_total === 'number') ? result.data.grand_total : null;
@@ -2103,6 +2122,7 @@
 		for (var i = 0; i < stepColumns.length; i++) {
 			stepColumns[i].addEventListener('click', function () {
 				var targetStep = parseInt(this.getAttribute('data-step'), 10);
+				if (targetStep > LAST_STEP) return;
 				if (targetStep === 5 && !state.confirmationCode) {
 					return;
 				}
@@ -2126,7 +2146,7 @@
 				e.preventDefault();
 				if (!canContinue() || isSubmitting) return;
 
-				if (state.step === 4) {
+				if (state.step === SUBMIT_STEP) {
 					submitBooking();
 				} else {
 					setStep(state.step + 1);
