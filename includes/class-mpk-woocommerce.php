@@ -55,12 +55,33 @@ class MPK_WooCommerce {
 		add_action( 'woocommerce_before_thankyou', array( $this, 'render_thankyou_booking' ) );
 		add_filter( 'woocommerce_thankyou_order_received_text', array( $this, 'thankyou_text' ), 10, 2 );
 
+		// Avoid duplicate emails for offline booking orders: the plugin's booking email
+		// already carries the payment instructions and the admin already got a booking alert.
+		add_filter( 'woocommerce_email_enabled_customer_on_hold_order', array( $this, 'skip_duplicate_email' ), 10, 2 );
+		add_filter( 'woocommerce_email_enabled_new_order', array( $this, 'skip_duplicate_email' ), 10, 2 );
+
 		// Booking details box on the WooCommerce order screen (legacy + HPOS).
 		add_action( 'add_meta_boxes', array( $this, 'register_order_meta_box' ), 10, 2 );
 
 		// Cancel online booking orders that were never paid.
 		add_action( 'mpk_cancel_unpaid_orders', array( __CLASS__, 'cancel_unpaid_orders' ) );
 		add_action( 'init', array( __CLASS__, 'schedule_cleanup' ) );
+	}
+
+	/**
+	 * Disable WooCommerce's "On hold" (customer) and "New order" (admin) emails while a
+	 * booking order is on hold - the plugin sends its own booking emails for that moment.
+	 * Once an online payment completes (Processing), WooCommerce's emails go out as usual.
+	 *
+	 * @param bool          $enabled Email enabled.
+	 * @param WC_Order|null $order   Order the email is for.
+	 * @return bool
+	 */
+	public function skip_duplicate_email( $enabled, $order = null ) {
+		if ( $enabled && $order instanceof WC_Order && $order->get_meta( self::META_BOOKING_ID ) && $order->has_status( 'on-hold' ) ) {
+			return (bool) apply_filters( 'mpk_send_wc_on_hold_emails', false, $order );
+		}
+		return $enabled;
 	}
 
 	/**
