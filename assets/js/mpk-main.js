@@ -575,11 +575,6 @@
 		return latestCheckOut || getTomorrowStr();
 	}
 
-	// WooCommerce checkout: the booking is submitted from step 3 and payment happens on WooCommerce's "Pay for order" page
-	var WC_CHECKOUT = !!(window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.wc_checkout);
-	var SUBMIT_STEP = WC_CHECKOUT ? 3 : 4;
-	var LAST_STEP = WC_CHECKOUT ? 3 : 5;
-
 	// Step Validation matching Route logic
 	function canContinue() {
 		if (state.step === 1) {
@@ -636,12 +631,10 @@
 		}
 
 		if (nextLabel) {
-			if (state.step === 3 && WC_CHECKOUT) {
-				nextLabel.textContent = isSubmitting ? 'Submitting...' : 'Proceed to Payment';
-			} else if (state.step === 3) {
+			if (state.step === 3) {
 				nextLabel.textContent = 'Confirm Booking';
 			} else if (state.step === 4) {
-				nextLabel.textContent = isSubmitting ? 'Submitting...' : 'Continue';
+				nextLabel.textContent = isSubmitting ? 'Submitting...' : (state.paymentKind === 'online' ? 'Proceed to Payment' : 'Continue');
 			} else {
 				nextLabel.textContent = 'Continue';
 			}
@@ -652,8 +645,8 @@
 
 		// A failed submission stays visible (red) until the user changes step / payment or retries
 		var hintWrap = hint ? hint.parentNode : null;
-		if (hintWrap) hintWrap.classList.toggle('mpk-has-error', !!(state.submitError && state.step === SUBMIT_STEP));
-		if (hint && !isSubmitting && state.submitError && state.step === SUBMIT_STEP) {
+		if (hintWrap) hintWrap.classList.toggle('mpk-has-error', !!(state.submitError && state.step === 4));
+		if (hint && !isSubmitting && state.submitError && state.step === 4) {
 			hint.textContent = state.submitError;
 			hint.style.color = '#dc2626';
 			return;
@@ -673,7 +666,7 @@
 	}
 
 	function setStep(newStep) {
-		if (newStep < 1 || newStep > LAST_STEP) return;
+		if (newStep < 1 || newStep > 5) return;
 		state.submitError = '';
 		state.step = newStep;
 
@@ -1872,6 +1865,9 @@
 				if (this.classList.contains('disabled')) return;
 				var method = this.getAttribute('data-payment-method');
 				state.paymentMethod = method;
+				// office | bank | offline | online (WooCommerce gateways); built-in cards use their method name
+				state.paymentKind = this.getAttribute('data-payment-kind') || method;
+				state.paymentTitle = this.getAttribute('data-payment-title') || '';
 				state.submitError = '';
 
 				for (var j = 0; j < paymentCards.length; j++) {
@@ -1909,7 +1905,8 @@
 			var paySettings = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
 			var instHtml = '';
 			var instRow = function (k, v) { return v ? '<p><span class="mpk-inst-k">' + k + '</span> ' + escHtml(v) + '</p>' : ''; };
-			if (state.paymentMethod === 'office') {
+			var payKind = state.paymentKind || state.paymentMethod;
+			if (payKind === 'office') {
 				instHtml += '<div class="mpk-inst-row"><span class="mpk-inst-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg></span><div>';
 				instHtml += '<p class="mpk-inst-title">Office Visit Payment</p>';
 				instHtml += '<p class="mpk-inst-desc">Please visit our office to complete payment within 48 hours to secure your booking.</p>';
@@ -1920,7 +1917,7 @@
 				instHtml += instRow('Email:', paySettings.support_email);
 				instHtml += instRow('Hours:', paySettings.office_hours);
 				instHtml += '</div>';
-			} else if (state.paymentMethod === 'bank') {
+			} else if (payKind === 'bank') {
 				instHtml += '<div class="mpk-inst-row"><span class="mpk-inst-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg></span><div>';
 				instHtml += '<p class="mpk-inst-title">Bank Transfer</p>';
 				instHtml += '<p class="mpk-inst-desc">Please transfer the total amount to the account below. Your booking is confirmed upon receipt.</p>';
@@ -1931,6 +1928,15 @@
 				instHtml += instRow('Account Number:', paySettings.bank_account_no);
 				instHtml += instRow('SWIFT:', paySettings.bank_swift);
 				instHtml += '<p class="mpk-inst-note">Please include your booking reference (' + escHtml(state.confirmationCode) + ') in the transfer note.</p>';
+				instHtml += '</div>';
+			} else if (payKind === 'offline' && state.paymentTitle) {
+				instHtml += '<div class="mpk-inst-row"><div>';
+				instHtml += '<p class="mpk-inst-title">' + escHtml(state.paymentTitle) + '</p>';
+				instHtml += '<p class="mpk-inst-desc">Payment details will be shared by our team. Please quote your booking reference (' + escHtml(state.confirmationCode) + ').</p>';
+				instHtml += '</div></div>';
+				instHtml += '<div class="mpk-inst-details">';
+				instHtml += instRow('Phone:', paySettings.support_phone);
+				instHtml += instRow('Email:', paySettings.support_email);
 				instHtml += '</div>';
 			} else {
 				instHtml = '<p class="mpk-empty-note">No payment method selected.</p>';
@@ -2095,11 +2101,6 @@
 				window.location.href = result.data.payment_url;
 				return;
 			}
-			if (WC_CHECKOUT) {
-				state.submitError = (result && result.data && result.data.message) ? result.data.message : 'Could not start the payment. Please try again.';
-				updateNavState();
-				return;
-			}
 			if (result && result.success && result.data && result.data.reference_id) {
 				state.confirmationCode = result.data.reference_id;
 				state.serverTotal = (typeof result.data.grand_total === 'number') ? result.data.grand_total : null;
@@ -2122,7 +2123,6 @@
 		for (var i = 0; i < stepColumns.length; i++) {
 			stepColumns[i].addEventListener('click', function () {
 				var targetStep = parseInt(this.getAttribute('data-step'), 10);
-				if (targetStep > LAST_STEP) return;
 				if (targetStep === 5 && !state.confirmationCode) {
 					return;
 				}
@@ -2146,7 +2146,7 @@
 				e.preventDefault();
 				if (!canContinue() || isSubmitting) return;
 
-				if (state.step === SUBMIT_STEP) {
+				if (state.step === 4) {
 					submitBooking();
 				} else {
 					setStep(state.step + 1);

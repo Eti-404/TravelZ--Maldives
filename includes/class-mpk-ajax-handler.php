@@ -443,10 +443,24 @@ class MPK_Ajax_Handler {
 			);
 		}
 
-		// With WooCommerce checkout the traveler picks the gateway on the "Pay for order" page.
-		$use_wc         = class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::is_enabled();
-		$payment_method = $use_wc ? 'woocommerce' : strtolower( $payment_method );
-		if ( ! $use_wc && ! in_array( $payment_method, self::get_allowed_payment_methods(), true ) ) {
+		// WooCommerce: the chosen card is a WooCommerce gateway ID.
+		$use_wc     = class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::is_enabled();
+		$gateway_id = '';
+		$pay_kind   = '';
+		if ( $use_wc ) {
+			$gateway_id = sanitize_key( $payment_method );
+			$gateways   = MPK_WooCommerce::get_gateways();
+			if ( isset( $gateways[ $gateway_id ] ) ) {
+				$pay_kind = $gateways[ $gateway_id ]['kind'];
+				// Stored label keeps emails / admin readable: bank, office, cheque ..., or online.
+				$payment_method = in_array( $pay_kind, array( 'bank', 'office' ), true ) ? $pay_kind : ( 'online' === $pay_kind ? 'online' : $gateway_id );
+			} else {
+				$payment_method = '';
+			}
+		} else {
+			$payment_method = strtolower( $payment_method );
+		}
+		if ( $use_wc ? '' === $pay_kind : ! in_array( $payment_method, self::get_allowed_payment_methods(), true ) ) {
 			wp_send_json_error(
 				array(
 					'field'   => 'payment_method',
@@ -633,7 +647,7 @@ class MPK_Ajax_Handler {
 		$payment_url = '';
 		$order_id    = 0;
 		if ( $use_wc ) {
-			$order = MPK_WooCommerce::create_order( $result['id'], $result['reference_id'], $booking_data, $trip );
+			$order = MPK_WooCommerce::create_order( $result['id'], $result['reference_id'], $booking_data, $trip, $gateway_id );
 			if ( is_wp_error( $order ) ) {
 				error_log( '[MPK] WooCommerce order failed: ' . $order->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions
 				MPK_Booking_Manager::delete_booking( $result['id'] );
@@ -648,8 +662,10 @@ class MPK_Ajax_Handler {
 					500
 				);
 			}
-			$order_id    = $order->get_id();
-			$payment_url = $order->get_checkout_payment_url();
+			$order_id = $order->get_id();
+			if ( 'online' === $pay_kind ) {
+				$payment_url = $order->get_checkout_payment_url();
+			}
 			MPK_Booking_Manager::set_order_id( $result['id'], $order_id );
 		}
 

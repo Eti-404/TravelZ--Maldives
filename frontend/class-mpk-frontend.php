@@ -156,8 +156,9 @@ class MPK_Frontend {
 
 		$locations = MPK_Data_Manager::get_locations();
 		$hero_img  = MPK_PLUGIN_URL . 'assets/images/maldives-hero.jpg';
-		// WooCommerce checkout replaces the built-in payment + confirmation steps.
+		// WooCommerce: payment cards come from the enabled WooCommerce gateways.
 		$wc_checkout = class_exists( 'MPK_WooCommerce' ) && MPK_WooCommerce::is_enabled();
+		$wc_gateways = $wc_checkout ? MPK_WooCommerce::get_gateways() : array();
 
 		ob_start();
 		?>
@@ -227,18 +228,6 @@ class MPK_Frontend {
 							</div>
 						</div>
 
-						<?php if ( $wc_checkout ) : ?>
-						<!-- Step 4 (WooCommerce checkout) -->
-						<div class="mpk-step-column" data-step="4">
-							<button type="button" class="mpk-step-item">
-								<div class="mpk-step-circle">4</div>
-								<div class="mpk-step-text-wrap">
-									<span class="mpk-step-label">Payment</span>
-									<span class="mpk-step-sub">Secure checkout</span>
-								</div>
-							</button>
-						</div>
-						<?php else : ?>
 						<!-- Step 4 -->
 						<div class="mpk-step-column" data-step="4">
 							<button type="button" class="mpk-step-item">
@@ -263,7 +252,6 @@ class MPK_Frontend {
 								</div>
 							</button>
 						</div>
-						<?php endif; ?>
 
 					</div>
 				</div>
@@ -720,7 +708,6 @@ class MPK_Frontend {
 						</label>
 					</section>
 
-					<?php if ( ! $wc_checkout ) : ?>
 					<!-- STEP 4: PAYMENT SELECTION -->
 					<section class="mpk-step-pane" id="mpk-pane-4" data-step="4">
 						<div class="mpk-section-header mpk-section-header-stacked">
@@ -729,6 +716,48 @@ class MPK_Frontend {
 						</div>
 
 						<div class="mpk-payment-options">
+							<?php if ( $wc_checkout ) : ?>
+								<?php
+								$icons      = array(
+									'bank'    => 'landmark',
+									'office'  => 'building-2',
+									'offline' => 'building-2',
+									'online'  => 'credit-card',
+								);
+								$has_online = false;
+								foreach ( $wc_gateways as $gw ) :
+									$has_online = $has_online || 'online' === $gw['kind'];
+									?>
+								<div class="mpk-payment-card" data-payment-method="<?php echo esc_attr( $gw['id'] ); ?>" data-payment-kind="<?php echo esc_attr( $gw['kind'] ); ?>" data-payment-title="<?php echo esc_attr( $gw['title'] ); ?>">
+									<div class="mpk-payment-icon">
+										<?php echo self::get_icon( $icons[ $gw['kind'] ], 24, 24 ); ?>
+									</div>
+									<div style="flex: 1;">
+										<p class="mpk-payment-title"><?php echo esc_html( $gw['title'] ); ?></p>
+										<?php if ( '' !== $gw['desc'] ) : ?>
+											<p class="mpk-payment-desc"><?php echo esc_html( $gw['desc'] ); ?></p>
+										<?php endif; ?>
+									</div>
+									<div class="mpk-payment-check-badge">
+										<?php echo self::get_icon( 'check', 16, 16 ); ?>
+									</div>
+								</div>
+								<?php endforeach; ?>
+								<?php if ( ! $has_online ) : ?>
+								<div class="mpk-payment-card disabled" data-payment-method="card">
+									<div class="mpk-payment-icon">
+										<?php echo self::get_icon( 'credit-card', 24, 24 ); ?>
+									</div>
+									<div style="flex: 1;">
+										<div style="display: flex; align-items: center; gap: 8px;">
+											<p class="mpk-payment-title">Card Payment</p>
+											<span class="mpk-pill mpk-pill-unavailable">Unavailable for now</span>
+										</div>
+										<p class="mpk-payment-desc">Pay securely with credit or debit card.</p>
+									</div>
+								</div>
+								<?php endif; ?>
+							<?php else : ?>
 							<!-- Office Payment -->
 							<div class="mpk-payment-card" data-payment-method="office">
 								<div class="mpk-payment-icon">
@@ -770,6 +799,7 @@ class MPK_Frontend {
 									<p class="mpk-payment-desc">Pay securely with credit or debit card.</p>
 								</div>
 							</div>
+							<?php endif; ?>
 						</div>
 					</section>
 
@@ -830,7 +860,6 @@ class MPK_Frontend {
 							</div>
 						</div>
 					</section>
-					<?php endif; ?>
 
 					<!-- BOTTOM STEP NAVIGATION (FLOATING FOOTER BAR) -->
 					<div class="mpk-step-nav" id="mpk-step-nav">

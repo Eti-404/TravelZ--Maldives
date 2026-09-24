@@ -521,7 +521,7 @@ class MPK_Settings {
 									<?php esc_html_e( 'Collect booking payments through WooCommerce', 'maldives-packages' ); ?>
 								</label>
 								<p class="description" style="margin-top:6px;">
-									<?php esc_html_e( 'Each booking creates a WooCommerce order and the traveler is sent to the "Pay for order" page. Payment methods (Bank transfer, Cash / office visit, SSLCommerz ...) are managed in WooCommerce → Settings → Payments.', 'maldives-packages' ); ?>
+									<?php esc_html_e( 'The payment cards in the booking wizard show the payment methods enabled in WooCommerce → Settings → Payments, and every booking creates a WooCommerce order. Bank transfer / Cash on delivery (Office visit) / Cheque put the order On hold; online methods such as SSLCommerz take the traveler to the payment page.', 'maldives-packages' ); ?>
 								</p>
 								<p style="margin:10px 0 0;">
 									<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=checkout' ) ); ?>"><?php esc_html_e( 'Manage payment methods', 'maldives-packages' ); ?></a>

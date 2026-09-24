@@ -2,10 +2,13 @@
 /**
  * WooCommerce bridge for Maldives Packages Booking (MPK).
  *
- * When WooCommerce is active (and enabled in Settings -> Payment), every booking
- * gets a WooCommerce order and the traveler is sent to the "Pay for order" page,
- * so payment methods (bank transfer, office / cash, SSLCommerz ...) are handled
- * entirely by WooCommerce gateways.
+ * When WooCommerce is active (and enabled in Settings -> Payment), the wizard's
+ * payment cards are built from the enabled WooCommerce gateways and every booking
+ * gets a WooCommerce order:
+ *  - offline gateways (Bank transfer, Cash / office visit, Cheque) -> order "On hold",
+ *    traveler sees the plugin's own confirmation step;
+ *  - online gateways (SSLCommerz, cards ...) -> traveler is sent to the
+ *    "Pay for order" page with only the chosen gateway shown.
  *
  * Approved Prefix: MPK / mpk_
  */
@@ -34,6 +37,83 @@ class MPK_WooCommerce {
 	public function __construct() {
 		// The helper product only exists to carry booking line items - never let it into a cart.
 		add_filter( 'woocommerce_add_to_cart_validation', array( $this, 'block_add_to_cart' ), 10, 2 );
+
+		// On "Pay for order" for a booking, only show the gateway chosen in the wizard.
+		add_filter( 'woocommerce_available_payment_gateways', array( $this, 'restrict_order_pay_gateways' ), 100 );
+	}
+
+	/**
+	 * How a gateway behaves in the wizard: 'bank', 'office', 'offline' or 'online'.
+	 *
+	 * @param string $gateway_id Gateway ID.
+	 * @return string
+	 */
+	public static function gateway_kind( $gateway_id ) {
+		$map = (array) apply_filters(
+			'mpk_offline_gateway_kinds',
+			array(
+				'bacs'   => 'bank',
+				'cod'    => 'office',
+				'cheque' => 'offline',
+			)
+		);
+		return isset( $map[ $gateway_id ] ) ? $map[ $gateway_id ] : 'online';
+	}
+
+	/**
+	 * Enabled WooCommerce gateways, shaped for the wizard's payment cards.
+	 *
+	 * @return array[] Keyed by gateway ID: id, title, desc, kind.
+	 */
+	public static function get_gateways() {
+		if ( ! self::is_available() || ! WC()->payment_gateways() ) {
+			return array();
+		}
+		$out = array();
+		foreach ( WC()->payment_gateways()->get_available_payment_gateways() as $id => $gw ) {
+			$kind  = self::gateway_kind( $id );
+			$title = wp_strip_all_tags( $gw->get_title() );
+			$desc  = wp_strip_all_tags( (string) $gw->get_description() );
+
+			// Friendlier defaults for the stock offline gateways (admins can rename them in WooCommerce).
+			if ( 'office' === $kind && in_array( $title, array( 'Cash on delivery', __( 'Cash on delivery', 'woocommerce' ) ), true ) ) {
+				$title = __( 'Office Visit Payment', 'maldives-packages' );
+				$desc  = __( 'Pay in person at our office. Our team will assist you.', 'maldives-packages' );
+			}
+			if ( 'bank' === $kind && in_array( $title, array( 'Direct bank transfer', __( 'Direct bank transfer', 'woocommerce' ) ), true ) ) {
+				$title = __( 'Bank Transfer', 'maldives-packages' );
+				$desc  = __( 'Transfer to our bank account. Details sent after confirmation.', 'maldives-packages' );
+			}
+
+			$out[ $id ] = array(
+				'id'    => $id,
+				'title' => $title,
+				'desc'  => $desc,
+				'kind'  => $kind,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Keep only the wizard-chosen gateway on a booking's "Pay for order" page.
+	 *
+	 * @param array $gateways Available gateways.
+	 * @return array
+	 */
+	public function restrict_order_pay_gateways( $gateways ) {
+		if ( ! is_array( $gateways ) || ! function_exists( 'is_wc_endpoint_url' ) || ! is_wc_endpoint_url( 'order-pay' ) ) {
+			return $gateways;
+		}
+		$order = wc_get_order( absint( get_query_var( 'order-pay' ) ) );
+		if ( ! $order || ! $order->get_meta( self::META_BOOKING_ID ) ) {
+			return $gateways;
+		}
+		$chosen = $order->get_payment_method();
+		if ( $chosen && isset( $gateways[ $chosen ] ) ) {
+			return array( $chosen => $gateways[ $chosen ] );
+		}
+		return $gateways;
 	}
 
 	/**
@@ -57,7 +137,7 @@ class MPK_WooCommerce {
 		$enabled = false;
 		if ( self::is_available() ) {
 			$s       = MPK_Data_Manager::get_settings();
-			$enabled = ! isset( $s['wc_checkout'] ) || ! empty( $s['wc_checkout'] );
+			$enabled = ( ! isset( $s['wc_checkout'] ) || ! empty( $s['wc_checkout'] ) ) && ! empty( self::get_gateways() );
 		}
 		return (bool) apply_filters( 'mpk_use_woocommerce_checkout', $enabled );
 	}
@@ -160,9 +240,10 @@ class MPK_WooCommerce {
 	 * @param string $reference   Booking reference (MPK-...).
 	 * @param array $booking      Sanitized booking data (lead_*, special_requests, grand_total ...).
 	 * @param array $trip         Result of the server-side trip builder (items, pricing).
+	 * @param string $gateway_id  WooCommerce gateway chosen in the wizard.
 	 * @return WC_Order|WP_Error
 	 */
-	public static function create_order( $booking_id, $reference, $booking, $trip ) {
+	public static function create_order( $booking_id, $reference, $booking, $trip, $gateway_id = '' ) {
 		$product = self::get_product();
 		if ( ! $product ) {
 			return new WP_Error( 'mpk_wc_product', 'Could not create the WooCommerce booking product.' );
@@ -236,6 +317,11 @@ class MPK_WooCommerce {
 				$order->set_customer_note( $booking['special_requests'] );
 			}
 
+			$gateways = WC()->payment_gateways() ? WC()->payment_gateways()->payment_gateways() : array();
+			if ( $gateway_id && isset( $gateways[ $gateway_id ] ) ) {
+				$order->set_payment_method( $gateways[ $gateway_id ] );
+			}
+
 			$order->update_meta_data( self::META_BOOKING_ID, (int) $booking_id );
 			$order->update_meta_data( self::META_REFERENCE, $reference );
 
@@ -250,6 +336,12 @@ class MPK_WooCommerce {
 			/* translators: %s: booking reference */
 			$order->add_order_note( sprintf( __( 'Created from Maldives package booking %s.', 'maldives-packages' ), $reference ) );
 			$order->save();
+
+			// Offline methods: nothing to pay online - hold the order until payment is received.
+			if ( $gateway_id && 'online' !== self::gateway_kind( $gateway_id ) ) {
+				/* translators: %s: payment method title */
+				$order->update_status( 'on-hold', sprintf( __( 'Awaiting %s payment.', 'maldives-packages' ), $order->get_payment_method_title() ) );
+			}
 
 			return $order;
 		} catch ( \Throwable $e ) {

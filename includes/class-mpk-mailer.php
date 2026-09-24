@@ -58,8 +58,8 @@ class MPK_Mailer {
 		// Format payment label
 		$payment_label = 'Office Visit';
 		$raw_pay       = strtolower( (string) $payment_method );
-		if ( 'woocommerce' === $raw_pay ) {
-			$payment_label = 'Online Checkout';
+		if ( 'online' === $raw_pay ) {
+			$payment_label = 'Online Payment';
 		} elseif ( false !== strpos( $raw_pay, 'bank' ) ) {
 			$payment_label = 'Bank Transfer';
 		} elseif ( false !== strpos( $raw_pay, 'office' ) ) {
