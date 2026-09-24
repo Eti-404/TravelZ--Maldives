@@ -106,8 +106,8 @@ class MPK_Settings {
 			'tax_rate'            => 0.08,
 			'extras'              => 45.00,
 			'service_fee'         => 25.00,
-			'child_discount_pct'  => 0,
-			'infant_discount_pct' => 100,
+			'child_discount_pct'  => 30,
+			'markup_pct'          => 0,
 
 			// Tab 3: Inclusions & Policies
 			'package_inclusions'  => "Return airport / speedboat transfers\nDaily housekeeping\nWelcome drink on arrival\n24/7 concierge support",
@@ -123,6 +123,7 @@ class MPK_Settings {
 			'office_address'      => 'Hulhumale Oceanfront Drive, Male Atoll, Maldives',
 			'support_email'       => 'concierge@example.com',
 			'support_phone'       => '+00 123 456789',
+			'office_hours'        => 'Sun–Thu, 9:00 AM – 6:00 PM',
 		);
 	}
 
@@ -152,15 +153,29 @@ class MPK_Settings {
 			$settings['hero_badge']      = isset( $_POST['hero_badge'] ) ? sanitize_text_field( wp_unslash( $_POST['hero_badge'] ) ) : $defaults['hero_badge'];
 			$settings['hero_title']      = isset( $_POST['hero_title'] ) ? sanitize_text_field( wp_unslash( $_POST['hero_title'] ) ) : $defaults['hero_title'];
 			$settings['hero_subtitle']   = isset( $_POST['hero_subtitle'] ) ? sanitize_textarea_field( wp_unslash( $_POST['hero_subtitle'] ) ) : $defaults['hero_subtitle'];
-			$settings['currency_symbol'] = isset( $_POST['currency_symbol'] ) ? sanitize_text_field( wp_unslash( $_POST['currency_symbol'] ) ) : '$';
+			$currency_list = MPK_Data_Manager::get_currency_list();
+			$cur_code      = isset( $_POST['currency_code'] ) ? strtoupper( sanitize_key( wp_unslash( $_POST['currency_code'] ) ) ) : 'USD';
+			if ( 'CUSTOM' !== $cur_code && ! isset( $currency_list[ $cur_code ] ) ) {
+				$cur_code = 'USD';
+			}
+			$settings['currency_code']     = $cur_code;
+			$custom_symbol                 = isset( $_POST['currency_symbol'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['currency_symbol'] ) ) ) : '';
+			$settings['currency_symbol']   = 'CUSTOM' === $cur_code ? ( '' !== $custom_symbol ? mb_substr( $custom_symbol, 0, 8 ) : '$' ) : $currency_list[ $cur_code ][1];
+			$cur_pos                       = isset( $_POST['currency_position'] ) ? sanitize_key( wp_unslash( $_POST['currency_position'] ) ) : 'left';
+			$settings['currency_position'] = in_array( $cur_pos, array( 'left', 'left_space', 'right', 'right_space' ), true ) ? $cur_pos : 'left';
+			$settings['currency_decimals'] = isset( $_POST['currency_decimals'] ) && in_array( $_POST['currency_decimals'], array( '0', '2' ), true ) ? (int) $_POST['currency_decimals'] : '';
 			$settings['passport_notice'] = isset( $_POST['passport_notice'] ) ? sanitize_textarea_field( wp_unslash( $_POST['passport_notice'] ) ) : $defaults['passport_notice'];
+
+			// Stored as a separate option so uninstall.php can read it without loading the plugin.
+			update_option( 'mpk_delete_data_on_uninstall', ! empty( $_POST['mpk_delete_data_on_uninstall'] ) ? 1 : 0, false );
 		} elseif ( 'pricing' === $active_tab ) {
 			$tax_pct = isset( $_POST['tax_rate_pct'] ) ? floatval( $_POST['tax_rate_pct'] ) : 8.0;
 			$settings['tax_rate']            = $tax_pct / 100.0;
 			$settings['extras']              = isset( $_POST['extras'] ) ? floatval( $_POST['extras'] ) : 45.00;
 			$settings['service_fee']         = isset( $_POST['service_fee'] ) ? floatval( $_POST['service_fee'] ) : 25.00;
-			$settings['child_discount_pct']  = isset( $_POST['child_discount_pct'] ) ? absint( $_POST['child_discount_pct'] ) : 0;
-			$settings['infant_discount_pct'] = isset( $_POST['infant_discount_pct'] ) ? absint( $_POST['infant_discount_pct'] ) : 100;
+			$settings['child_discount_pct']  = isset( $_POST['child_discount_pct'] ) ? min( 100, absint( $_POST['child_discount_pct'] ) ) : 30;
+			$settings['markup_pct']          = isset( $_POST['markup_pct'] ) ? min( 100, max( 0, round( floatval( $_POST['markup_pct'] ), 2 ) ) ) : 0;
+			unset( $settings['infant_discount_pct'] ); // Infants are always free.
 		} elseif ( 'policies' === $active_tab ) {
 			$settings['package_inclusions']  = isset( $_POST['package_inclusions'] ) ? sanitize_textarea_field( wp_unslash( $_POST['package_inclusions'] ) ) : $defaults['package_inclusions'];
 			$settings['package_excludes']    = isset( $_POST['package_excludes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['package_excludes'] ) ) : $defaults['package_excludes'];
@@ -187,6 +202,7 @@ class MPK_Settings {
 			$settings['office_address']    = isset( $_POST['office_address'] ) ? sanitize_textarea_field( wp_unslash( $_POST['office_address'] ) ) : $defaults['office_address'];
 			$settings['support_email']     = isset( $_POST['support_email'] ) ? sanitize_email( wp_unslash( $_POST['support_email'] ) ) : $defaults['support_email'];
 			$settings['support_phone']     = isset( $_POST['support_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['support_phone'] ) ) : $defaults['support_phone'];
+			$settings['office_hours']      = isset( $_POST['office_hours'] ) ? sanitize_text_field( wp_unslash( $_POST['office_hours'] ) ) : $defaults['office_hours'];
 		}
 
 		update_option( 'mpk_settings', $settings );
@@ -289,11 +305,98 @@ class MPK_Settings {
 									<p class="description"><?php esc_html_e( 'Tagline and luxury description under the hero header.', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
+							<?php
+							$mpk_cur      = MPK_Data_Manager::get_currency();
+							$mpk_cur_list = MPK_Data_Manager::get_currency_list();
+							?>
 							<tr>
-								<th scope="row"><label for="currency_symbol"><?php esc_html_e( 'Currency Symbol', 'maldives-packages' ); ?></label></th>
+								<th scope="row"><label for="currency_code"><?php esc_html_e( 'Currency', 'maldives-packages' ); ?></label></th>
 								<td>
-									<input name="currency_symbol" type="text" id="currency_symbol" value="<?php echo esc_attr( $s['currency_symbol'] ); ?>" style="width: 80px; text-align: center; font-size: 16px; font-weight: bold;" />
-									<p class="description"><?php esc_html_e( 'Default currency symbol (default: $).', 'maldives-packages' ); ?></p>
+									<div class="mpk-cur-box">
+										<div class="mpk-cur-row">
+											<label class="mpk-cur-field">
+												<span><?php esc_html_e( 'Currency', 'maldives-packages' ); ?></span>
+												<select name="currency_code" id="currency_code">
+													<?php foreach ( $mpk_cur_list as $code => $row ) : ?>
+														<option value="<?php echo esc_attr( $code ); ?>" data-symbol="<?php echo esc_attr( $row[1] ); ?>" data-decimals="<?php echo esc_attr( $row[2] ); ?>" <?php selected( $mpk_cur['code'], $code ); ?>>
+															<?php echo esc_html( $row[1] . '  ' . $code . ' — ' . $row[0] ); ?>
+														</option>
+													<?php endforeach; ?>
+													<option value="CUSTOM" data-symbol="" data-decimals="2" <?php selected( $mpk_cur['code'], 'CUSTOM' ); ?>><?php esc_html_e( 'Custom symbol…', 'maldives-packages' ); ?></option>
+												</select>
+											</label>
+											<label class="mpk-cur-field mpk-cur-custom" <?php echo 'CUSTOM' === $mpk_cur['code'] ? '' : 'style="display:none;"'; ?>>
+												<span><?php esc_html_e( 'Symbol', 'maldives-packages' ); ?></span>
+												<input name="currency_symbol" type="text" id="currency_symbol" maxlength="8" value="<?php echo esc_attr( 'CUSTOM' === $mpk_cur['code'] ? $mpk_cur['symbol'] : '' ); ?>" placeholder="e.g. Tk" />
+											</label>
+											<label class="mpk-cur-field">
+												<span><?php esc_html_e( 'Symbol position', 'maldives-packages' ); ?></span>
+												<select name="currency_position" id="currency_position">
+													<option value="left" <?php selected( $mpk_cur['position'], 'left' ); ?>><?php esc_html_e( 'Before amount — ৳1,250', 'maldives-packages' ); ?></option>
+													<option value="left_space" <?php selected( $mpk_cur['position'], 'left_space' ); ?>><?php esc_html_e( 'Before, with space — ৳ 1,250', 'maldives-packages' ); ?></option>
+													<option value="right" <?php selected( $mpk_cur['position'], 'right' ); ?>><?php esc_html_e( 'After amount — 1,250৳', 'maldives-packages' ); ?></option>
+													<option value="right_space" <?php selected( $mpk_cur['position'], 'right_space' ); ?>><?php esc_html_e( 'After, with space — 1,250 ৳', 'maldives-packages' ); ?></option>
+												</select>
+											</label>
+											<label class="mpk-cur-field">
+												<span><?php esc_html_e( 'Decimals', 'maldives-packages' ); ?></span>
+												<select name="currency_decimals" id="currency_decimals">
+													<option value="0" <?php selected( $mpk_cur['decimals'], 0 ); ?>><?php esc_html_e( 'None — 1,250', 'maldives-packages' ); ?></option>
+													<option value="2" <?php selected( $mpk_cur['decimals'], 2 ); ?>><?php esc_html_e( 'Two — 1,250.00', 'maldives-packages' ); ?></option>
+												</select>
+											</label>
+										</div>
+										<div class="mpk-cur-preview">
+											<span><?php esc_html_e( 'Preview', 'maldives-packages' ); ?></span>
+											<strong id="mpk-cur-preview-val"><?php echo esc_html( MPK_Data_Manager::format_price( 12500 ) ); ?></strong>
+											<em><?php esc_html_e( 'per night', 'maldives-packages' ); ?></em>
+										</div>
+										<p class="description">
+											<?php esc_html_e( 'Used everywhere: booking wizard, room prices, totals, emails and the bookings dashboard.', 'maldives-packages' ); ?>
+											<br><strong><?php esc_html_e( 'Note:', 'maldives-packages' ); ?></strong>
+											<?php esc_html_e( 'Changing the currency does not convert prices. Enter hotel room rates, extra charges and the service fee in the selected currency.', 'maldives-packages' ); ?>
+										</p>
+									</div>
+									<style>
+										.mpk-cur-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;max-width:760px;}
+										.mpk-cur-row{display:flex;flex-wrap:wrap;gap:14px;}
+										.mpk-cur-field{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:12px;color:#475569;}
+										.mpk-cur-field select,.mpk-cur-field input{min-width:170px;height:36px;}
+										#currency_code{min-width:260px;}
+										.mpk-cur-preview{display:flex;align-items:baseline;gap:10px;margin:14px 0 8px;padding:10px 14px;background:#fff;border:1px dashed #cbd5e1;border-radius:10px;}
+										.mpk-cur-preview span{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;}
+										.mpk-cur-preview strong{font-size:22px;color:#0f172a;}
+										.mpk-cur-preview em{font-size:12px;color:#64748b;font-style:normal;}
+									</style>
+									<script>
+									(function () {
+										var code = document.getElementById('currency_code');
+										var sym = document.getElementById('currency_symbol');
+										var pos = document.getElementById('currency_position');
+										var dec = document.getElementById('currency_decimals');
+										var out = document.getElementById('mpk-cur-preview-val');
+										var customWrap = document.querySelector('.mpk-cur-custom');
+										if (!code || !out) return;
+										function render() {
+											var opt = code.options[code.selectedIndex];
+											var isCustom = code.value === 'CUSTOM';
+											customWrap.style.display = isCustom ? '' : 'none';
+											var s = isCustom ? (sym.value.trim() || '$') : opt.getAttribute('data-symbol');
+											var d = parseInt(dec.value, 10) || 0;
+											var n = (12500).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+											var p = pos.value;
+											out.textContent = p === 'left_space' ? s + ' ' + n : p === 'right' ? n + s : p === 'right_space' ? n + ' ' + s : s + n;
+										}
+										code.addEventListener('change', function () {
+											// Suggest the currency's usual decimals when switching
+											var opt = code.options[code.selectedIndex];
+											if (opt && opt.getAttribute('data-decimals') !== null) dec.value = opt.getAttribute('data-decimals');
+											render();
+										});
+										[sym, pos, dec].forEach(function (el) { el.addEventListener('input', render); el.addEventListener('change', render); });
+										render();
+									})();
+									</script>
 								</td>
 							</tr>
 							<tr>
@@ -301,6 +404,16 @@ class MPK_Settings {
 								<td>
 									<textarea name="passport_notice" id="passport_notice" rows="2" class="large-text"><?php echo esc_textarea( $s['passport_notice'] ); ?></textarea>
 									<p class="description"><?php esc_html_e( 'Advisory note shown under Important Notes and Passport Upload in Step 3.', 'maldives-packages' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Data on Uninstall', 'maldives-packages' ); ?></th>
+								<td>
+									<label for="mpk_delete_data_on_uninstall">
+										<input name="mpk_delete_data_on_uninstall" type="checkbox" id="mpk_delete_data_on_uninstall" value="1" <?php checked( 1, (int) get_option( 'mpk_delete_data_on_uninstall', 0 ) ); ?> />
+										<?php esc_html_e( 'Delete ALL plugin data when the plugin is deleted', 'maldives-packages' ); ?>
+									</label>
+									<p class="description" style="color:#b91c1c;"><?php esc_html_e( 'Removes every booking, uploaded passport copy, hotel, destination and setting. This cannot be undone. Leave unchecked to keep data when reinstalling.', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
 						</table>
@@ -319,31 +432,39 @@ class MPK_Settings {
 								</td>
 							</tr>
 							<tr>
-								<th scope="row"><label for="extras"><?php esc_html_e( 'Extra / Transfer Charge ($ USD)', 'maldives-packages' ); ?></label></th>
+								<th scope="row"><label for="extras"><?php echo esc_html( sprintf( __( 'Extra / Transfer Charge (%s)', 'maldives-packages' ), MPK_Data_Manager::currency_label() ) ); ?></label></th>
 								<td>
-									$ <input name="extras" type="number" step="0.5" min="0" id="extras" value="<?php echo esc_attr( $s['extras'] ); ?>" style="width: 120px;" />
-									<p class="description"><?php esc_html_e( 'Combined port/environmental surcharge (Default: $45.00).', 'maldives-packages' ); ?></p>
+									<?php echo esc_html( MPK_Data_Manager::get_currency()['symbol'] ); ?> <input name="extras" type="number" step="0.5" min="0" id="extras" value="<?php echo esc_attr( $s['extras'] ); ?>" style="width: 120px;" />
+									<p class="description"><?php esc_html_e( 'Combined port/environmental surcharge (Default: 45).', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
 							<tr>
-								<th scope="row"><label for="service_fee"><?php esc_html_e( 'Concierge Service Fee ($ USD)', 'maldives-packages' ); ?></label></th>
+								<th scope="row"><label for="service_fee"><?php echo esc_html( sprintf( __( 'Concierge Service Fee (%s)', 'maldives-packages' ), MPK_Data_Manager::currency_label() ) ); ?></label></th>
 								<td>
-									$ <input name="service_fee" type="number" step="0.5" min="0" id="service_fee" value="<?php echo esc_attr( $s['service_fee'] ); ?>" style="width: 120px;" />
-									<p class="description"><?php esc_html_e( 'Standard flat booking concierge assistance fee (Default: $25.00).', 'maldives-packages' ); ?></p>
+									<?php echo esc_html( MPK_Data_Manager::get_currency()['symbol'] ); ?> <input name="service_fee" type="number" step="0.5" min="0" id="service_fee" value="<?php echo esc_attr( $s['service_fee'] ); ?>" style="width: 120px;" />
+									<p class="description"><?php esc_html_e( 'Standard flat booking concierge assistance fee (Default: 25).', 'maldives-packages' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="markup_pct"><?php esc_html_e( 'Package Markup (%)', 'maldives-packages' ); ?></label></th>
+								<td>
+									<input name="markup_pct" type="number" step="0.5" min="0" max="100" id="markup_pct" value="<?php echo esc_attr( isset( $s['markup_pct'] ) ? $s['markup_pct'] : 0 ); ?>" style="width: 120px;" /> %
+									<p class="description"><?php esc_html_e( 'Added to every hotel room rate. Customers see the final (marked-up) nightly rate everywhere. Example: 10% turns a 200/night room into 220/night.', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
 							<tr>
 								<th scope="row"><label for="child_discount_pct"><?php esc_html_e( 'Child Discount (%)', 'maldives-packages' ); ?></label></th>
 								<td>
-									<input name="child_discount_pct" type="number" step="1" min="0" max="100" id="child_discount_pct" value="<?php echo esc_attr( isset( $s['child_discount_pct'] ) ? $s['child_discount_pct'] : 0 ); ?>" style="width: 120px;" /> %
-									<p class="description"><?php esc_html_e( 'Percentage discount on base package for child guests.', 'maldives-packages' ); ?></p>
+									<input name="child_discount_pct" type="number" step="1" min="0" max="100" id="child_discount_pct" value="<?php echo esc_attr( isset( $s['child_discount_pct'] ) ? $s['child_discount_pct'] : 30 ); ?>" style="width: 120px;" /> %
+									<p class="description"><?php esc_html_e( 'Discount on one adult\'s share (half the room rate) per night. 0% = child pays same as an adult share, 100% = free.', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
 							<tr>
-								<th scope="row"><label for="infant_discount_pct"><?php esc_html_e( 'Infant Discount (%)', 'maldives-packages' ); ?></label></th>
+								<th scope="row"><?php esc_html_e( 'How pricing works', 'maldives-packages' ); ?></th>
 								<td>
-									<input name="infant_discount_pct" type="number" step="1" min="0" max="100" id="infant_discount_pct" value="<?php echo esc_attr( isset( $s['infant_discount_pct'] ) ? $s['infant_discount_pct'] : 100 ); ?>" style="width: 120px;" /> %
-									<p class="description"><?php esc_html_e( 'Percentage discount for infants (Default: 100% - free of charge).', 'maldives-packages' ); ?></p>
+									<p class="description" style="margin-top:0;">
+										<?php esc_html_e( 'Room rate x nights x rooms (each room includes 2 adults) + extra adults (half room rate per night each) + children (half room rate minus child discount) + infants free. Tax is applied to that subtotal, then extra charges and service fee are added once per booking.', 'maldives-packages' ); ?>
+									</p>
 								</td>
 							</tr>
 						</table>
@@ -434,6 +555,13 @@ class MPK_Settings {
 								<td>
 									<input name="support_phone" type="text" id="support_phone" value="<?php echo esc_attr( $s['support_phone'] ); ?>" class="regular-text" />
 									<p class="description"><?php esc_html_e( '24/7 emergency traveler hotline.', 'maldives-packages' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="office_hours"><?php esc_html_e( 'Office Hours', 'maldives-packages' ); ?></label></th>
+								<td>
+									<input name="office_hours" type="text" id="office_hours" value="<?php echo esc_attr( isset( $s['office_hours'] ) ? $s['office_hours'] : $defaults['office_hours'] ); ?>" class="regular-text" />
+									<p class="description"><?php esc_html_e( 'Shown on the booking confirmation for office-visit payments. Leave empty to hide.', 'maldives-packages' ); ?></p>
 								</td>
 							</tr>
 						</table>

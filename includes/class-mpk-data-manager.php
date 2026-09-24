@@ -49,11 +49,12 @@ class MPK_Data_Manager {
 			);
 			$img_idx = 0;
 
+			$synced = array();
 			foreach ( $terms as $term ) {
 				$slug = $term->slug;
 				if ( ! isset( $loc_by_id[ $slug ] ) ) {
 					// New destination created in admin
-					$loc_by_id[ $slug ] = array(
+					$loc = array(
 						'id'      => $slug,
 						'name'    => $term->name,
 						'tagline' => ! empty( $term->description ) ? $term->description : __( 'Pristine island getaway', 'maldives-packages' ),
@@ -62,12 +63,27 @@ class MPK_Data_Manager {
 					);
 					$img_idx++;
 				} else {
-					$loc_by_id[ $slug ]['name'] = $term->name;
+					$loc         = $loc_by_id[ $slug ];
+					$loc['name'] = $term->name;
 					if ( ! empty( $term->description ) ) {
-						$loc_by_id[ $slug ]['tagline'] = $term->description;
+						$loc['tagline'] = $term->description;
 					}
 				}
+
+				// Image chosen in admin (Destinations > Destination Image) wins over defaults.
+				$term_image_id = (int) get_term_meta( $term->term_id, '_mpk_destination_image_id', true );
+				if ( $term_image_id ) {
+					$term_image = wp_get_attachment_image_url( $term_image_id, 'large' );
+					if ( $term_image ) {
+						$loc['image'] = $term_image;
+					}
+				}
+
+				$synced[ $slug ] = $loc;
 			}
+
+			// Only destinations that still exist in admin are offered in the wizard.
+			$loc_by_id = $synced;
 
 			$locations = array_values( $loc_by_id );
 		}
@@ -109,6 +125,14 @@ class MPK_Data_Manager {
 		);
 
 		$hotels = array();
+
+		// Default display order of seeded hotels (matches the reference design).
+		$default_orders = array();
+		foreach ( MPK_Seeder::get_default_hotels() as $dh ) {
+			if ( ! empty( $dh['id'] ) && ! empty( $dh['menu_order'] ) ) {
+				$default_orders[ $dh['id'] ] = (int) $dh['menu_order'];
+			}
+		}
 
 		if ( ! empty( $posts ) ) {
 			foreach ( $posts as $p ) {
@@ -285,6 +309,10 @@ class MPK_Data_Manager {
 				$rooms = $normalized_rooms;
 
 				$menu_order = isset( $p->menu_order ) && $p->menu_order > 0 ? (int) $p->menu_order : (int) get_post_meta( $post_id, '_mpk_menu_order', true );
+				if ( $menu_order <= 0 && isset( $default_orders[ $hotel_id ] ) ) {
+					// Older installs were seeded without an order: fall back to the reference order.
+					$menu_order = $default_orders[ $hotel_id ];
+				}
 
 				$hotels[] = array(
 					'id'          => $hotel_id,
@@ -360,6 +388,10 @@ class MPK_Data_Manager {
 	 */
 	public static function get_settings() {
 		$settings = get_option( 'mpk_settings', array() );
+		if ( ! class_exists( 'MPK_Settings' ) ) {
+			// Defaults (bank / office / support details) are needed on the frontend too.
+			require_once MPK_PLUGIN_DIR . 'admin/class-mpk-settings.php';
+		}
 		$defaults = class_exists( 'MPK_Settings' ) ? MPK_Settings::get_defaults() : array();
 		$seed_defaults = class_exists( 'MPK_Seeder' ) ? MPK_Seeder::get_default_settings() : array();
 
@@ -400,6 +432,116 @@ class MPK_Data_Manager {
 	}
 
 	/**
+	 * Supported currencies: code => [label, symbol, default decimals].
+	 *
+	 * @return array
+	 */
+	public static function get_currency_list() {
+		return (array) apply_filters(
+			'mpk_currency_list',
+			array(
+				'BDT' => array( 'Bangladeshi Taka', '৳', 0 ),
+				'USD' => array( 'US Dollar', '$', 2 ),
+				'EUR' => array( 'Euro', '€', 2 ),
+				'GBP' => array( 'British Pound', '£', 2 ),
+				'INR' => array( 'Indian Rupee', '₹', 0 ),
+				'MVR' => array( 'Maldivian Rufiyaa', 'Rf', 2 ),
+				'AED' => array( 'UAE Dirham', 'AED', 2 ),
+				'SAR' => array( 'Saudi Riyal', 'SAR', 2 ),
+				'MYR' => array( 'Malaysian Ringgit', 'RM', 2 ),
+				'SGD' => array( 'Singapore Dollar', 'S$', 2 ),
+				'THB' => array( 'Thai Baht', '฿', 2 ),
+				'LKR' => array( 'Sri Lankan Rupee', 'Rs', 0 ),
+				'PKR' => array( 'Pakistani Rupee', '₨', 0 ),
+				'NPR' => array( 'Nepalese Rupee', 'Rs', 0 ),
+				'CNY' => array( 'Chinese Yuan', '¥', 2 ),
+				'JPY' => array( 'Japanese Yen', '¥', 0 ),
+				'AUD' => array( 'Australian Dollar', 'A$', 2 ),
+				'CAD' => array( 'Canadian Dollar', 'C$', 2 ),
+			)
+		);
+	}
+
+	/**
+	 * Active currency settings (one place for every price shown anywhere).
+	 *
+	 * @return array{code:string,symbol:string,position:string,decimals:int}
+	 */
+	public static function get_currency() {
+		$s    = get_option( 'mpk_settings', array() );
+		$list = self::get_currency_list();
+
+		$code = isset( $s['currency_code'] ) ? strtoupper( (string) $s['currency_code'] ) : '';
+		$sym  = isset( $s['currency_symbol'] ) ? (string) $s['currency_symbol'] : '$';
+
+		// Older installs only stored a symbol: map it back to a known currency.
+		if ( '' === $code ) {
+			$code = 'CUSTOM';
+			foreach ( $list as $c => $row ) {
+				if ( $row[1] === $sym ) {
+					$code = $c;
+					break;
+				}
+			}
+			if ( '$' === $sym ) {
+				$code = 'USD';
+			}
+		}
+
+		if ( 'CUSTOM' !== $code && isset( $list[ $code ] ) ) {
+			$sym              = $list[ $code ][1];
+			$default_decimals = (int) $list[ $code ][2];
+		} else {
+			$code             = 'CUSTOM';
+			$sym              = '' !== trim( $sym ) ? $sym : '$';
+			$default_decimals = 2;
+		}
+
+		$position = isset( $s['currency_position'] ) && in_array( $s['currency_position'], array( 'left', 'left_space', 'right', 'right_space' ), true ) ? $s['currency_position'] : 'left';
+		$decimals = isset( $s['currency_decimals'] ) && '' !== $s['currency_decimals'] ? min( 2, max( 0, (int) $s['currency_decimals'] ) ) : $default_decimals;
+
+		return array(
+			'code'     => $code,
+			'symbol'   => $sym,
+			'position' => $position,
+			'decimals' => $decimals,
+		);
+	}
+
+	/**
+	 * Format an amount with the active currency, e.g. "৳12,500" or "12,500.00 €".
+	 *
+	 * @param float    $amount   Amount.
+	 * @param int|null $decimals Decimals (null = currency default).
+	 * @return string
+	 */
+	public static function format_price( $amount, $decimals = null ) {
+		$c        = self::get_currency();
+		$decimals = null === $decimals ? $c['decimals'] : (int) $decimals;
+		$num      = number_format( (float) $amount, $decimals, '.', ',' );
+		switch ( $c['position'] ) {
+			case 'left_space':
+				return $c['symbol'] . ' ' . $num;
+			case 'right':
+				return $num . $c['symbol'];
+			case 'right_space':
+				return $num . ' ' . $c['symbol'];
+			default:
+				return $c['symbol'] . $num;
+		}
+	}
+
+	/**
+	 * Short label for admin field labels, e.g. "৳ BDT" or "€".
+	 *
+	 * @return string
+	 */
+	public static function currency_label() {
+		$c = self::get_currency();
+		return 'CUSTOM' === $c['code'] ? $c['symbol'] : $c['symbol'] . ' ' . $c['code'];
+	}
+
+	/**
 	 * Get complete unified package data payload for frontend localization.
 	 *
 	 * @return array Combined data.
@@ -412,6 +554,8 @@ class MPK_Data_Manager {
 			'locations'  => self::get_locations(),
 			'hotels'     => self::get_hotels(),
 			'settings'   => self::get_settings(),
+			'currency'   => self::get_currency(),
+			'occupancy'  => class_exists( 'MPK_Ajax_Handler' ) ? MPK_Ajax_Handler::get_occupancy_rules() : array( 'max_adults' => 3, 'max_guests' => 4, 'max_infants' => 2 ),
 		);
 	}
 }

@@ -43,8 +43,9 @@ class MPK_Admin {
 		add_action( 'admin_menu', array( $this, 'register_unified_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'wp_ajax_mpk_update_booking_status', array( $this, 'ajax_update_booking_status' ) );
-		add_action( 'wp_ajax_mpk_delete_booking', array( $this, 'ajax_delete_booking' ) );
+		// Note: wp_ajax_mpk_delete_booking is registered once in MPK_Ajax_Handler.
 		add_action( 'admin_init', array( $this, 'handle_admin_redirects' ) );
+		add_action( 'admin_post_mpk_migrate_passports', array( $this, 'handle_migrate_passports' ) );
 		add_filter( 'parent_file', array( $this, 'filter_parent_file' ) );
 		add_filter( 'submenu_file', array( $this, 'filter_submenu_file' ) );
 	}
@@ -248,6 +249,13 @@ class MPK_Admin {
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'mpk_bookings';
 
+		$old_status = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$table_name} WHERE id = %d", $booking_id ) );
+		if ( null === $old_status ) {
+			wp_send_json_error( array( 'message' => __( 'Booking not found.', 'maldives-packages' ) ), 404 );
+		}
+		// Treat legacy "Confirmed" as "Approved" so re-approving does not re-send email.
+		$status_changed = ( 'Confirmed' === $old_status ? 'Approved' : $old_status ) !== $new_status;
+
 		$updated = $wpdb->update(
 			$table_name,
 			array( 'status' => $new_status ),
@@ -260,8 +268,8 @@ class MPK_Admin {
 			wp_send_json_error( array( 'message' => __( 'Failed to update database record.', 'maldives-packages' ) ), 500 );
 		}
 
-		// Trigger Automated Customer Status-Update Email
-		if ( class_exists( 'MPK_Mailer' ) ) {
+		// Trigger Automated Customer Status-Update Email (only when the status actually changed)
+		if ( $status_changed && class_exists( 'MPK_Mailer' ) ) {
 			try {
 				MPK_Mailer::send_status_update_email( $booking_id, $new_status );
 			} catch ( \Throwable $e ) {
@@ -305,6 +313,31 @@ class MPK_Admin {
 	}
 
 	/**
+	 * admin-post: move legacy public passport files into the private folder.
+	 */
+	public function handle_migrate_passports() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'maldives-packages' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'mpk_migrate_passports' );
+
+		$res = MPK_Ajax_Handler::migrate_legacy_passports( 200 );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'        => 'maldives-packages',
+					'mpk_moved'   => (int) $res['moved'],
+					'mpk_missing' => (int) $res['missing'],
+					'mpk_failed'  => (int) $res['failed'],
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
 	 * Render the main Maldives Bookings admin page.
 	 */
 	public function render_bookings_page() {
@@ -338,14 +371,21 @@ class MPK_Admin {
 		}
 
 		$where_sql = implode( ' AND ', $where_clauses );
-		$query = "SELECT * FROM {$table_name} WHERE {$where_sql} ORDER BY id DESC";
 
-		if ( ! empty( $query_params ) ) {
-			$safe_query = $wpdb->prepare( $query, $query_params );
-			$bookings = $wpdb->get_results( $safe_query );
-		} else {
-			$bookings = $wpdb->get_results( $query );
-		}
+		// Pagination
+		$per_page     = (int) apply_filters( 'mpk_bookings_per_page', 25 );
+		$per_page     = max( 5, min( 200, $per_page ) );
+		$current_page = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
+
+		$count_query    = "SELECT COUNT(*) FROM {$table_name} WHERE {$where_sql}";
+		$filtered_total = (int) ( ! empty( $query_params ) ? $wpdb->get_var( $wpdb->prepare( $count_query, $query_params ) ) : $wpdb->get_var( $count_query ) );
+		$total_pages    = max( 1, (int) ceil( $filtered_total / $per_page ) );
+		$current_page   = min( $current_page, $total_pages );
+		$offset         = ( $current_page - 1 ) * $per_page;
+
+		$query       = "SELECT * FROM {$table_name} WHERE {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d";
+		$page_params = array_merge( $query_params, array( $per_page, $offset ) );
+		$bookings    = $wpdb->get_results( $wpdb->prepare( $query, $page_params ) );
 
 		// Summary Stats
 		$total_count     = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name}" );
@@ -408,7 +448,7 @@ class MPK_Admin {
 				<div class="mpk-stat-card mpk-stat-revenue">
 					<div class="mpk-stat-meta">
 						<span class="mpk-stat-label"><?php esc_html_e( 'Approved Bookings Value', 'maldives-packages' ); ?></span>
-						<span class="mpk-stat-value">$<?php echo esc_html( number_format( $total_revenue, 2 ) ); ?></span>
+						<span class="mpk-stat-value"><?php echo esc_html( MPK_Data_Manager::format_price( $total_revenue ) ); ?></span>
 					</div>
 					<div class="mpk-stat-icon-wrap"><span class="dashicons dashicons-money-alt"></span></div>
 				</div>
@@ -451,6 +491,41 @@ class MPK_Admin {
 					<?php endif; ?>
 				</form>
 			</div>
+
+			<?php
+			// Passport migration result + pending legacy files notice.
+			if ( isset( $_GET['mpk_moved'] ) ) :
+				$mv = absint( $_GET['mpk_moved'] );
+				$ms = isset( $_GET['mpk_missing'] ) ? absint( $_GET['mpk_missing'] ) : 0;
+				$fl = isset( $_GET['mpk_failed'] ) ? absint( $_GET['mpk_failed'] ) : 0;
+				?>
+				<div class="notice <?php echo $fl ? 'notice-warning' : 'notice-success'; ?> is-dismissible">
+					<p>
+						<?php
+						/* translators: 1: moved, 2: missing, 3: failed */
+						echo esc_html( sprintf( __( 'Passport migration: %1$d moved to private storage, %2$d missing files cleared, %3$d failed.', 'maldives-packages' ), $mv, $ms, $fl ) );
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<?php $legacy_passports = MPK_Ajax_Handler::count_legacy_passports(); ?>
+			<?php if ( $legacy_passports > 0 ) : ?>
+				<div class="notice notice-error" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+					<p>
+						<strong><?php esc_html_e( 'Security:', 'maldives-packages' ); ?></strong>
+						<?php
+						/* translators: %d: number of bookings */
+						echo esc_html( sprintf( _n( '%d booking has a passport copy stored in a publicly accessible folder.', '%d bookings have passport copies stored in a publicly accessible folder.', $legacy_passports, 'maldives-packages' ), $legacy_passports ) );
+						?>
+					</p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin: 6px 0;">
+						<input type="hidden" name="action" value="mpk_migrate_passports" />
+						<?php wp_nonce_field( 'mpk_migrate_passports' ); ?>
+						<button type="submit" class="button button-primary"><?php esc_html_e( 'Move to Private Storage', 'maldives-packages' ); ?></button>
+					</form>
+				</div>
+			<?php endif; ?>
 
 			<!-- Notice Banner -->
 			<div id="mpk-admin-toast" class="mpk-toast" style="display:none;"></div>
@@ -507,7 +582,7 @@ class MPK_Admin {
 									'lead_phone'        => $b->lead_phone,
 									'lead_country'      => $b->lead_country,
 									'passport_no'       => $b->passport_no,
-									'passport_file_url' => ! empty( $b->passport_file_url ) ? $b->passport_file_url : '',
+									'passport_file_url' => ! empty( $b->passport_file_url ) ? MPK_Ajax_Handler::get_passport_view_url( $b->id ) : '',
 									'special_requests'  => $b->special_requests,
 									'selected_location' => $b->selected_location,
 									'hotel_name'        => $b->hotel_name,
@@ -519,10 +594,12 @@ class MPK_Admin {
 									'children'          => (int) $b->children,
 									'infants'           => (int) $b->infants,
 									'rooms_count'       => (int) $b->rooms_count,
-									'grand_total'       => number_format( (float) $b->grand_total, 2 ),
+									'grand_total'       => MPK_Data_Manager::format_price( (float) $b->grand_total ),
 									'payment_method'    => $payment_label,
 									'status'            => $b->status,
 									'created_at'        => gmdate( 'd M Y, H:i', strtotime( $b->created_at ) ),
+									'pricing'           => ( ! empty( $b->pricing_breakdown ) && is_array( json_decode( $b->pricing_breakdown, true ) ) ) ? json_decode( $b->pricing_breakdown, true ) : null,
+									'items'             => ( ! empty( $b->booking_items ) && is_array( json_decode( $b->booking_items, true ) ) ) ? json_decode( $b->booking_items, true ) : array(),
 								);
 								?>
 								<tr id="mpk-booking-row-<?php echo esc_attr( $b->id ); ?>">
@@ -552,7 +629,7 @@ class MPK_Admin {
 										<?php endif; ?>
 										<?php if ( ! empty( $b->passport_file_url ) ) : ?>
 											<div class="mpk-cell-sub" style="margin-top: 4px;">
-												<a href="<?php echo esc_url( $b->passport_file_url ); ?>" target="_blank" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#0284c7; text-decoration:none;" title="<?php esc_attr_e( 'View Attached Passport', 'maldives-packages' ); ?>">
+												<a href="<?php echo esc_url( MPK_Ajax_Handler::get_passport_view_url( $b->id ) ); ?>" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#0284c7; text-decoration:none;" title="<?php esc_attr_e( 'View Attached Passport', 'maldives-packages' ); ?>">
 													<span class="dashicons dashicons-paperclip" style="font-size:13px; width:13px; height:13px;"></span> <?php esc_html_e( 'Passport Copy', 'maldives-packages' ); ?>
 												</a>
 											</div>
@@ -602,7 +679,7 @@ class MPK_Admin {
 
 									<!-- Amount & Payment -->
 									<td>
-										<div class="mpk-amount-val">$<?php echo esc_html( number_format( (float) $b->grand_total, 2 ) ); ?></div>
+										<div class="mpk-amount-val"><?php echo esc_html( MPK_Data_Manager::format_price( (float) $b->grand_total ) ); ?></div>
 										<span class="mpk-payment-pill mpk-pay-<?php echo esc_attr( strtolower( $b->payment_method ) ); ?>">
 											<?php echo esc_html( $payment_label ); ?>
 										</span>
@@ -637,6 +714,33 @@ class MPK_Admin {
 					</tbody>
 				</table>
 			</div>
+
+			<?php if ( $total_pages > 1 ) : ?>
+				<div class="tablenav bottom mpk-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+					<span class="displaying-num">
+						<?php
+						/* translators: 1: first item, 2: last item, 3: total */
+						echo esc_html( sprintf( __( 'Showing %1$d–%2$d of %3$d bookings', 'maldives-packages' ), $offset + 1, min( $offset + $per_page, $filtered_total ), $filtered_total ) );
+						?>
+					</span>
+					<div class="tablenav-pages">
+						<?php
+						echo wp_kses_post(
+							paginate_links(
+								array(
+									'base'      => add_query_arg( 'paged', '%#%' ),
+									'format'    => '',
+									'current'   => $current_page,
+									'total'     => $total_pages,
+									'prev_text' => '&laquo;',
+									'next_text' => '&raquo;',
+								)
+							)
+						);
+						?>
+					</div>
+				</div>
+			<?php endif; ?>
 		</div>
 
 		<!-- Booking Details Modal -->
@@ -685,7 +789,7 @@ class MPK_Admin {
 							<div class="mpk-modal-info-item" id="mpk-modal-passport-wrap" style="grid-column: 1 / -1; display: none; margin-top: 6px; padding-top: 10px; border-top: 1px dashed #e2e8f0;">
 								<span class="mpk-modal-label">Passport Attachment Document</span>
 								<div style="margin-top: 6px;">
-									<a href="#" id="mpk-modal-passport-link" target="_blank" class="button button-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #0284c7;">
+									<a href="#" id="mpk-modal-passport-link" target="_blank" rel="noopener noreferrer" class="button button-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #0284c7;">
 										<span class="dashicons dashicons-media-document"></span> <?php esc_html_e( 'View / Download Passport Copy', 'maldives-packages' ); ?> &rarr;
 									</a>
 								</div>
@@ -722,6 +826,31 @@ class MPK_Admin {
 								<span class="mpk-modal-val" id="mpk-modal-pricing" style="color: #0284c7; font-weight: 700;">—</span>
 							</div>
 						</div>
+					</div>
+
+					<!-- Price Breakdown (saved at booking time) -->
+					<div class="mpk-modal-section" id="mpk-modal-pricing-section" style="display: none;">
+						<h4 class="mpk-modal-section-title"><span class="dashicons dashicons-calculator"></span> <?php esc_html_e( 'Price Breakdown', 'maldives-packages' ); ?></h4>
+						<table class="widefat striped" style="border-radius: 8px; overflow: hidden; max-width: 420px;">
+							<tbody id="mpk-modal-pricing-body"></tbody>
+						</table>
+					</div>
+
+					<!-- Per-room Itinerary (from booking_items) -->
+					<div class="mpk-modal-section" id="mpk-modal-items-section" style="display: none;">
+						<h4 class="mpk-modal-section-title"><span class="dashicons dashicons-list-view"></span> <?php esc_html_e( 'Room-by-Room Itinerary', 'maldives-packages' ); ?></h4>
+						<table class="widefat striped" style="border-radius: 8px; overflow: hidden;">
+							<thead>
+								<tr>
+									<th><?php esc_html_e( 'Hotel / Room', 'maldives-packages' ); ?></th>
+									<th><?php esc_html_e( 'Destination', 'maldives-packages' ); ?></th>
+									<th><?php esc_html_e( 'Dates', 'maldives-packages' ); ?></th>
+									<th style="text-align: right;"><?php esc_html_e( 'Rate', 'maldives-packages' ); ?></th>
+									<th style="text-align: right;"><?php esc_html_e( 'Room Total', 'maldives-packages' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="mpk-modal-items-body"></tbody>
+						</table>
 					</div>
 
 					<!-- Special Requests Box -->
@@ -1254,6 +1383,13 @@ class MPK_Admin {
 		<script>
 			(function() {
 				var adminNonce = <?php echo wp_json_encode( $admin_nonce ); ?>;
+				var mpkCurrency = <?php echo wp_json_encode( MPK_Data_Manager::get_currency() ); ?>;
+				function mpkMoney(v) {
+					var d = mpkCurrency.decimals;
+					var n = (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+					var sym = mpkCurrency.symbol, p = mpkCurrency.position;
+					return p === 'left_space' ? sym + ' ' + n : p === 'right' ? n + sym : p === 'right_space' ? n + ' ' + sym : sym + n;
+				}
 				var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
 				var currentModalBookingId = null;
 
@@ -1367,9 +1503,73 @@ class MPK_Admin {
 					document.getElementById('mpk-modal-location').textContent = data.selected_location || '—';
 					document.getElementById('mpk-modal-dates').textContent = data.check_in + ' → ' + data.check_out + ' (' + data.nights + ' nights)';
 					document.getElementById('mpk-modal-guests').textContent = data.adults + ' Adults, ' + data.children + ' Children, ' + data.infants + ' Infants (' + data.rooms_count + ' Rooms)';
-					document.getElementById('mpk-modal-pricing').textContent = '$' + data.grand_total + ' (' + data.payment_method + ')';
+					document.getElementById('mpk-modal-pricing').textContent = data.grand_total + ' (' + data.payment_method + ')';
 
 					document.getElementById('mpk-modal-notes').textContent = data.special_requests || 'No special requests submitted by customer.';
+
+					// Room-by-room itinerary (built with textContent - no HTML injection)
+					var itemsSection = document.getElementById('mpk-modal-items-section');
+					var itemsBody = document.getElementById('mpk-modal-items-body');
+					if (itemsSection && itemsBody) {
+						while (itemsBody.firstChild) itemsBody.removeChild(itemsBody.firstChild);
+						var items = Array.isArray(data.items) ? data.items : [];
+						for (var it = 0; it < items.length; it++) {
+							var itm = items[it] || {};
+							var nights = parseInt(itm.nights, 10) || 0;
+							var rooms = parseInt(itm.rooms, 10) || 1;
+							var rate = parseFloat(itm.price) || 0;
+							var cells = [
+								(itm.hotel || '—') + ' · ' + (itm.room || '—'),
+								itm.location || '—',
+								(itm.check_in || '?') + ' → ' + (itm.check_out || '?') + ' (' + nights + ' ' + (nights === 1 ? 'night' : 'nights') + ')',
+								mpkMoney(rate) + (rooms > 1 ? ' × ' + rooms + ' rooms' : ''),
+								mpkMoney(rate * nights * rooms)
+							];
+							var tr = document.createElement('tr');
+							for (var ci = 0; ci < cells.length; ci++) {
+								var td = document.createElement('td');
+								td.textContent = cells[ci];
+								if (ci >= 3) td.style.textAlign = 'right';
+								tr.appendChild(td);
+							}
+							itemsBody.appendChild(tr);
+						}
+						itemsSection.style.display = items.length ? 'block' : 'none';
+					}
+
+					// Price breakdown saved at booking time (textContent only)
+					var prSection = document.getElementById('mpk-modal-pricing-section');
+					var prBody = document.getElementById('mpk-modal-pricing-body');
+					if (prSection && prBody) {
+						while (prBody.firstChild) prBody.removeChild(prBody.firstChild);
+						var pr = data.pricing;
+						if (pr && typeof pr === 'object') {
+							var money = function (v) { return mpkMoney(v); };
+							var rowsPr = [['Rooms', money(pr.room_cost)]];
+							if (parseFloat(pr.extra_adult_cost) > 0) rowsPr.push(['Extra adults (' + (parseInt(pr.extra_adults, 10) || 0) + ')', money(pr.extra_adult_cost)]);
+							if (parseFloat(pr.child_cost) > 0) rowsPr.push(['Children (' + data.children + ')', money(pr.child_cost)]);
+							if (data.infants > 0) rowsPr.push(['Infants (' + data.infants + ')', 'Free']);
+							rowsPr.push(['Tax', money(pr.tax)]);
+							if (parseFloat(pr.extras) > 0) rowsPr.push(['Extra charges', money(pr.extras)]);
+							if (parseFloat(pr.service_fee) > 0) rowsPr.push(['Service fee', money(pr.service_fee)]);
+							rowsPr.push(['Grand Total', data.grand_total]);
+							for (var pi = 0; pi < rowsPr.length; pi++) {
+								var ptr = document.createElement('tr');
+								var ptd1 = document.createElement('td');
+								var ptd2 = document.createElement('td');
+								ptd1.textContent = rowsPr[pi][0];
+								ptd2.textContent = rowsPr[pi][1];
+								ptd2.style.textAlign = 'right';
+								if (pi === rowsPr.length - 1) { ptd1.style.fontWeight = '700'; ptd2.style.fontWeight = '700'; }
+								ptr.appendChild(ptd1);
+								ptr.appendChild(ptd2);
+								prBody.appendChild(ptr);
+							}
+							prSection.style.display = 'block';
+						} else {
+							prSection.style.display = 'none';
+						}
+					}
 
 					modal.style.display = 'flex';
 				}

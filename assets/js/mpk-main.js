@@ -12,6 +12,21 @@
 (function () {
 	'use strict';
 
+	// Escape dynamic text before inserting into innerHTML (XSS hardening)
+	var escDecoder = document.createElement('textarea');
+	function escHtml(str) {
+		if (str === null || str === undefined) return '';
+		// Decode existing entities first (WP stores term names as "&amp;") to avoid double-escaping.
+		// <textarea> content is RCDATA, so this never parses or executes markup.
+		escDecoder.innerHTML = String(str);
+		return escDecoder.value
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
 	// Default fallback dataset matching Mpackages/src/lib/booking-data.ts
 	var DEFAULT_LOCATIONS = [
 		{
@@ -235,6 +250,7 @@
 			meals: [],
 			beds: [],
 			rooms: [],
+			minPrice: 0,
 			maxPrice: 1000
 		},
 		confirmationCode: ''
@@ -354,9 +370,12 @@
 		if (!room) return false;
 		if (!filters) return true;
 
-		// 1. Max Price filter
-		if (typeof room.price === 'number' && typeof filters.maxPrice === 'number') {
-			if (room.price > filters.maxPrice) return false;
+		// 1. Price range filter (min & max per night)
+		if (typeof filters.maxPrice === 'number') {
+			if (roomRate(room) > filters.maxPrice) return false;
+		}
+		if (typeof filters.minPrice === 'number') {
+			if (roomRate(room) < filters.minPrice) return false;
 		}
 
 		// 2. Meal filter (if any selected, room.meal must match one)
@@ -391,69 +410,126 @@
 		return true;
 	}
 
-	// Real-Time Pricing Calculation matching SummarySidebar.tsx
+	// Pricing settings from admin (safe defaults)
+	function getPricingRules() {
+		var ps = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
+		function num(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
+		return {
+			taxRate: Math.max(0, num(ps.tax_rate, 0.08)),
+			extras: Math.max(0, num(ps.extras, 45)),
+			service: Math.max(0, num(ps.service_fee, 25)),
+			childDiscount: Math.min(100, Math.max(0, num(ps.child_discount_pct, 30))),
+			markup: Math.min(100, Math.max(0, num(ps.markup_pct, 0)))
+		};
+	}
+
+	// Nightly rate customers see and pay (admin room rate + package markup)
+	function roomRate(room) {
+		if (!room) return 0;
+		var p = Math.max(0, parseFloat(room.price) || 0);
+		return Math.round(p * (1 + getPricingRules().markup / 100) * 100) / 100;
+	}
+
+	function fmtMoney(n) {
+		return (Math.round(n * 100) / 100).toFixed(2);
+	}
+
+	// Reference style for nightly rates & stay totals: "$120", "$132.50"
+	function fmtPlain(n) {
+		var v = Math.round((parseFloat(n) || 0) * 100) / 100;
+		return (v % 1 === 0) ? String(v) : v.toFixed(2);
+	}
+
+	// Active currency from admin Settings (symbol, position, decimals)
+	function getCurrency() {
+		var c = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.currency) ? window.MPK_INITIAL_DATA.currency : {};
+		return {
+			symbol: (c.symbol !== undefined && c.symbol !== '') ? String(c.symbol) : '$',
+			position: c.position || 'left',
+			decimals: (c.decimals === 0 || c.decimals === '0') ? 0 : 2
+		};
+	}
+
+	// Format money in the active currency.
+	// exact=true  -> always currency decimals (totals, e.g. "৳12,500" / "$836.80")
+	// exact=false -> no trailing zeros (nightly rates, e.g. "$120", "$132.50")
+	function money(n, exact) {
+		var c = getCurrency();
+		var v = parseFloat(n) || 0;
+		var minD = exact ? c.decimals : 0;
+		var maxD = c.decimals;
+		var num = v.toLocaleString('en-US', { minimumFractionDigits: minD, maximumFractionDigits: maxD });
+		switch (c.position) {
+			case 'left_space': return c.symbol + ' ' + num;
+			case 'right': return num + c.symbol;
+			case 'right_space': return num + ' ' + c.symbol;
+			default: return c.symbol + num;
+		}
+	}
+
+	// Amenity pill icons (reference: Pool=waves, Wifi=wifi, Restaurant=utensils, others=sparkles)
+	var SVG_ATTR = ' width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+	var AMENITY_ICONS = {
+		waves: '<svg' + SVG_ATTR + '><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>',
+		wifi: '<svg' + SVG_ATTR + '><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>',
+		utensils: '<svg' + SVG_ATTR + '><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',
+		sparkles: '<svg' + SVG_ATTR + '><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
+	};
+	function amenityIcon(name) {
+		var n = String(name || '').toLowerCase();
+		if (n.indexOf('pool') > -1) return AMENITY_ICONS.waves;
+		if (n.indexOf('wifi') > -1 || n.indexOf('wi-fi') > -1) return AMENITY_ICONS.wifi;
+		if (n.indexOf('restaurant') > -1) return AMENITY_ICONS.utensils;
+		return AMENITY_ICONS.sparkles;
+	}
+
+	var MOON_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+
+	// Real-time pricing - keep in sync with build_trip_from_selections() in class-mpk-ajax-handler.php
+	// Rooms (2 adults incl.) + extra adults + children (infants free) -> tax -> + extras + service fee
 	function calcPricing() {
-		var base = 0;
+		var rules = getPricingRules();
+		var rooms = Math.max(1, state.rooms || 1);
+		var adults = Math.max(1, state.adults || 1);
+		var children = Math.max(0, state.children || 0);
+		var extraAdults = Math.max(0, adults - (2 * rooms));
+
+		var roomCost = 0, extraAdultCost = 0, childCost = 0, totalNights = 0;
 		for (var i = 0; i < state.selections.length; i++) {
 			var sel = state.selections[i];
 			var hotel = findHotel(sel.hotelId);
 			var room = hotel ? findRoom(hotel, sel.roomId) : null;
 			var nights = (sel.checkIn && sel.checkOut) ? diffDays(sel.checkIn, sel.checkOut) : 0;
+			totalNights += nights;
 			if (room && nights > 0) {
-				base += room.price * nights;
+				var rate = roomRate(room);
+				var share = rate / 2;
+				roomCost += rate * nights * rooms;
+				extraAdultCost += extraAdults * share * nights;
+				childCost += children * share * (1 - rules.childDiscount / 100) * nights;
 			}
 		}
 
-		var totalNights = 0;
-		for (var j = 0; j < state.selections.length; j++) {
-			var s = state.selections[j];
-			if (s.checkIn && s.checkOut) {
-				totalNights += diffDays(s.checkIn, s.checkOut);
-			}
+		var subtotal = roomCost + extraAdultCost + childCost;
+		if (subtotal <= 0) {
+			return { roomCost: 0, extraAdultCost: 0, childCost: 0, subtotal: 0, extras: 0, tax: 0, service: 0, total: 0, totalNights: totalNights, rooms: rooms, extraAdults: extraAdults };
 		}
 
-		if (base === 0) {
-			return {
-				base: 0,
-				adultPkg: 0,
-				childPkg: 0,
-				subtotal: 0,
-				extras: 0,
-				tax: 0,
-				service: 0,
-				total: 0,
-				totalNights: totalNights
-			};
-		}
-
-		var pkgSettings = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
-		var taxRate = (typeof pkgSettings.tax_rate === 'number') ? pkgSettings.tax_rate : 0.08;
-		var extrasCharge = (typeof pkgSettings.extras === 'number') ? pkgSettings.extras : 45;
-		var serviceCharge = (typeof pkgSettings.service_fee === 'number') ? pkgSettings.service_fee : 25;
-
-		var childFactor = 0.35;
-		if (typeof pkgSettings.child_discount_pct === 'number' && pkgSettings.child_discount_pct > 0) {
-			childFactor = Math.max(0, 0.55 * (1 - (pkgSettings.child_discount_pct / 100)));
-		}
-
-		var adultPkg = base * Math.max(1, state.adults) * 0.55;
-		var childPkg = base * state.children * childFactor;
-		var subtotal = adultPkg + childPkg;
-		var extras = extrasCharge;
-		var tax = subtotal * taxRate;
-		var service = serviceCharge;
-		var total = subtotal + extras + tax + service;
+		var tax = subtotal * rules.taxRate;
+		var total = subtotal + tax + rules.extras + rules.service;
 
 		return {
-			base: base,
-			adultPkg: adultPkg,
-			childPkg: childPkg,
+			roomCost: roomCost,
+			extraAdultCost: extraAdultCost,
+			childCost: childCost,
 			subtotal: subtotal,
-			extras: extras,
+			extras: rules.extras,
 			tax: tax,
-			service: service,
-			total: total,
-			totalNights: totalNights
+			service: rules.service,
+			total: Math.round(total * 100) / 100,
+			totalNights: totalNights,
+			rooms: rooms,
+			extraAdults: extraAdults
 		};
 	}
 
@@ -558,7 +634,7 @@
 			if (state.step === 3) {
 				nextLabel.textContent = 'Confirm Booking';
 			} else if (state.step === 4) {
-				nextLabel.textContent = isSubmitting ? 'Submitting...' : 'Complete Booking';
+				nextLabel.textContent = isSubmitting ? 'Submitting...' : 'Continue';
 			} else {
 				nextLabel.textContent = 'Continue';
 			}
@@ -566,6 +642,15 @@
 
 		var ok = canContinue();
 		btnNext.disabled = !ok || isSubmitting;
+
+		// A failed submission stays visible (red) until the user changes step / payment or retries
+		var hintWrap = hint ? hint.parentNode : null;
+		if (hintWrap) hintWrap.classList.toggle('mpk-has-error', !!(state.submitError && state.step === 4));
+		if (hint && !isSubmitting && state.submitError && state.step === 4) {
+			hint.textContent = state.submitError;
+			hint.style.color = '#dc2626';
+			return;
+		}
 
 		if (hint && !isSubmitting) {
 			if (ok) {
@@ -582,6 +667,7 @@
 
 	function setStep(newStep) {
 		if (newStep < 1 || newStep > 5) return;
+		state.submitError = '';
 		state.step = newStep;
 
 		// Update step panes
@@ -687,6 +773,17 @@
 		var minusBtns = document.querySelectorAll('.mpk-btn-qty-minus');
 		var plusBtns = document.querySelectorAll('.mpk-btn-qty-plus');
 
+		// Occupancy limits per room (from server; infants not counted as guests)
+		var occ = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.occupancy) ? window.MPK_INITIAL_DATA.occupancy : {};
+		var MAX_ADULTS = parseInt(occ.max_adults, 10) || 3;
+		var MAX_GUESTS = parseInt(occ.max_guests, 10) || 4;
+		var MAX_INFANTS = (occ.max_infants !== undefined) ? (parseInt(occ.max_infants, 10) || 0) : 2;
+		var MAX_ROOMS = 10;
+
+		function fitsRooms(a, c, i, r) {
+			return r >= 1 && r <= a && a <= MAX_ADULTS * r && (a + c) <= MAX_GUESTS * r && i <= MAX_INFANTS * r;
+		}
+
 		function updateCounters() {
 			var adultsEl = document.getElementById('mpk-val-adults');
 			var childrenEl = document.getElementById('mpk-val-children');
@@ -703,20 +800,37 @@
 			for (var m = 0; m < minusBtns.length; m++) {
 				var btn = minusBtns[m];
 				var tgt = btn.getAttribute('data-target');
-				if (tgt === 'adults') btn.disabled = state.adults <= 1;
+				if (tgt === 'adults') btn.disabled = state.adults <= 1 || !fitsRooms(state.adults - 1, state.children, state.infants, Math.min(state.rooms, state.adults - 1));
 				if (tgt === 'children') btn.disabled = state.children <= 0;
 				if (tgt === 'infants') btn.disabled = state.infants <= 0;
-				if (tgt === 'rooms') btn.disabled = state.rooms <= 1;
+				if (tgt === 'rooms') btn.disabled = state.rooms <= 1 || !fitsRooms(state.adults, state.children, state.infants, state.rooms - 1);
+			}
+
+			var a = state.adults, c = state.children, i = state.infants, r = state.rooms;
+			for (var pl = 0; pl < plusBtns.length; pl++) {
+				var pb = plusBtns[pl];
+				var pt = pb.getAttribute('data-target');
+				if (pt === 'adults') pb.disabled = a >= 20 || !fitsRooms(a + 1, c, i, r);
+				if (pt === 'children') pb.disabled = c >= 20 || !fitsRooms(a, c + 1, i, r);
+				if (pt === 'infants') pb.disabled = i >= 10 || !fitsRooms(a, c, i + 1, r);
+				if (pt === 'rooms') pb.disabled = r >= MAX_ROOMS || !fitsRooms(a, c, i, r + 1);
+			}
+
+			var occHint = document.getElementById('mpk-occupancy-hint');
+			if (occHint) {
+				occHint.textContent = 'Max ' + MAX_ADULTS + ' adults / ' + MAX_GUESTS + ' guests (excl. infants) per room. Add a room for more guests.';
 			}
 		}
 
 		for (var p = 0; p < plusBtns.length; p++) {
 			plusBtns[p].addEventListener('click', function () {
 				var tgt = this.getAttribute('data-target');
-				if (tgt === 'adults') state.adults++;
-				if (tgt === 'children') state.children++;
-				if (tgt === 'infants') state.infants++;
-				if (tgt === 'rooms') state.rooms++;
+				var na = state.adults + (tgt === 'adults' ? 1 : 0);
+				var nc = state.children + (tgt === 'children' ? 1 : 0);
+				var ni = state.infants + (tgt === 'infants' ? 1 : 0);
+				var nr = state.rooms + (tgt === 'rooms' ? 1 : 0);
+				if (!tgt || !fitsRooms(na, nc, ni, nr)) return;
+				state.adults = na; state.children = nc; state.infants = ni; state.rooms = nr;
 				updateCounters();
 				if (state.step === 3) renderReview();
 			});
@@ -725,10 +839,17 @@
 		for (var m = 0; m < minusBtns.length; m++) {
 			minusBtns[m].addEventListener('click', function () {
 				var tgt = this.getAttribute('data-target');
-				if (tgt === 'adults' && state.adults > 1) state.adults--;
+				if (!tgt) return;
+				// Reducing adults below rooms also reduces rooms (each room needs an adult)
+				if (tgt === 'adults' && state.adults > 1) {
+					var la = state.adults - 1, lr = Math.min(state.rooms, la);
+					if (!fitsRooms(la, state.children, state.infants, lr)) return;
+					state.adults = la;
+					state.rooms = lr;
+				}
 				if (tgt === 'children' && state.children > 0) state.children--;
 				if (tgt === 'infants' && state.infants > 0) state.infants--;
-				if (tgt === 'rooms' && state.rooms > 1) state.rooms--;
+				if (tgt === 'rooms' && state.rooms > 1 && fitsRooms(state.adults, state.children, state.infants, state.rooms - 1)) state.rooms--;
 				updateCounters();
 				if (state.step === 3) renderReview();
 			});
@@ -791,14 +912,27 @@
 		}
 
 		var priceSlider = document.getElementById('mpk-price-range');
-		var priceLabel = document.getElementById('mpk-price-max-label');
+		var priceSliderMin = document.getElementById('mpk-price-range-min');
+		setupPriceRange();
 		if (priceSlider) {
 			priceSlider.addEventListener('input', function () {
-				state.filters.maxPrice = parseInt(this.value, 10);
-				if (priceLabel) priceLabel.textContent = '$' + state.filters.maxPrice;
+				var v = parseInt(this.value, 10);
+				if (priceSliderMin && v < parseInt(priceSliderMin.value, 10)) { v = parseInt(priceSliderMin.value, 10); this.value = v; }
+				state.filters.maxPrice = v;
+				syncPriceRange();
 				renderHotels();
 			});
 		}
+		if (priceSliderMin) {
+			priceSliderMin.addEventListener('input', function () {
+				var v = parseInt(this.value, 10);
+				if (priceSlider && v > parseInt(priceSlider.value, 10)) { v = parseInt(priceSlider.value, 10); this.value = v; }
+				state.filters.minPrice = v;
+				syncPriceRange();
+				renderHotels();
+			});
+		}
+		syncPriceRange();
 
 		// Accordion collapse toggles for filter sections
 		var filterAccordionTitles = document.querySelectorAll('.mpk-filter-accordion-item .mpk-filter-title');
@@ -818,7 +952,9 @@
 		state.filters.meals = [];
 		state.filters.beds = [];
 		state.filters.rooms = [];
-		state.filters.maxPrice = 1000;
+		var pr = getPriceBounds();
+		state.filters.maxPrice = pr.max;
+		state.filters.minPrice = pr.min;
 
 		var searchInput = document.getElementById('mpk-hotel-search');
 		if (searchInput) searchInput.value = '';
@@ -829,11 +965,73 @@
 		}
 
 		var priceSlider = document.getElementById('mpk-price-range');
-		var priceLabel = document.getElementById('mpk-price-max-label');
-		if (priceSlider) priceSlider.value = '1000';
-		if (priceLabel) priceLabel.textContent = '$1000';
+		var priceSliderMin = document.getElementById('mpk-price-range-min');
+		if (priceSlider) priceSlider.value = String(pr.max);
+		if (priceSliderMin) priceSliderMin.value = String(pr.min);
+		syncPriceRange();
 
 		renderHotels();
+	}
+
+	// Price filter bounds follow the real room rates (works for any currency: $1000 or ৳150,000)
+	function niceCeil(v) {
+		if (v <= 0) return 100;
+		var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+		var steps = [1, 2, 2.5, 5, 10];
+		for (var i = 0; i < steps.length; i++) {
+			if (steps[i] * mag >= v) return steps[i] * mag;
+		}
+		return 10 * mag;
+	}
+
+	function getPriceBounds() {
+		var maxRate = 0;
+		for (var h = 0; h < HOTELS.length; h++) {
+			var rooms = HOTELS[h].rooms || [];
+			for (var r = 0; r < rooms.length; r++) {
+				maxRate = Math.max(maxRate, roomRate(rooms[r]));
+			}
+		}
+		var max = niceCeil(maxRate);
+		var step = Math.max(1, Math.round(max / 100));
+		return { min: 0, max: max, step: step };
+	}
+
+	function setupPriceRange() {
+		var pr = getPriceBounds();
+		var ids = ['mpk-price-range-min', 'mpk-price-range'];
+		for (var i = 0; i < ids.length; i++) {
+			var el = document.getElementById(ids[i]);
+			if (!el) continue;
+			el.min = String(pr.min);
+			el.max = String(pr.max);
+			el.step = String(pr.step);
+			el.value = String(i === 0 ? pr.min : pr.max);
+		}
+		state.filters.minPrice = pr.min;
+		state.filters.maxPrice = pr.max;
+	}
+
+	// Dual-thumb price range: fill between thumbs + labels (reference slider look)
+	function syncPriceRange() {
+		var maxEl = document.getElementById('mpk-price-range');
+		var minEl = document.getElementById('mpk-price-range-min');
+		var fill = document.getElementById('mpk-price-range-fill');
+		var minLbl = document.getElementById('mpk-price-min-label');
+		var maxLbl = document.getElementById('mpk-price-max-label');
+		if (!maxEl) return;
+		var lo = parseFloat(maxEl.min) || 0;
+		var hi = parseFloat(maxEl.max) || 1000;
+		var vMin = minEl ? parseFloat(minEl.value) : lo;
+		var vMax = parseFloat(maxEl.value);
+		if (fill) {
+			fill.style.left = ((vMin - lo) / (hi - lo) * 100) + '%';
+			fill.style.right = (100 - (vMax - lo) / (hi - lo) * 100) + '%';
+		}
+		if (minLbl) minLbl.textContent = money(vMin);
+		if (maxLbl) maxLbl.textContent = money(vMax);
+		// Keep the min thumb reachable when both thumbs meet at the top end
+		if (minEl) minEl.style.zIndex = (vMin >= hi - (parseFloat(maxEl.step) || 1)) ? '4' : '3';
 	}
 
 	function renderHotels() {
@@ -893,12 +1091,12 @@
 			html += '<div class="mpk-location-section">';
 			html += '<div class="mpk-location-heading">';
 			html += '<div class="mpk-heading-bar"></div>';
-			html += '<h3>' + loc.name + ' Hotels</h3>';
+			html += '<h3>' + escHtml(loc.name) + ' Hotels</h3>';
 			html += '</div>';
 
 			if (hotelsForLoc.length === 0) {
 				html += '<div style="background: rgba(255, 255, 255, 0.6); border: 2px dashed var(--mpk-border); border-radius: var(--mpk-radius-lg); padding: 36px 20px; text-align: center;">';
-				html += '<p style="font-size: 14px; color: var(--mpk-text-muted); margin: 0 0 12px;">No hotels match your filters in ' + loc.name + '.</p>';
+				html += '<p style="font-size: 14px; color: var(--mpk-text-muted); margin: 0 0 12px;">No hotels match your filters in ' + escHtml(loc.name) + '.</p>';
 				html += '<button type="button" class="mpk-btn mpk-btn-outline mpk-btn-reset-filters" style="font-size: 13px; padding: 8px 16px;">Clear Filters</button>';
 				html += '</div>';
 			} else {
@@ -906,7 +1104,7 @@
 					var hotel = hotelsForLoc[hIdx];
 					html += '<article class="mpk-hotel-card">';
 					html += '<div class="mpk-hotel-media">';
-					html += '<img src="' + resolveImageUrl(hotel.image) + '" alt="' + hotel.name + '" loading="lazy" />';
+					html += '<img src="' + escHtml(resolveImageUrl(hotel.image)) + '" alt="' + escHtml(hotel.name) + '" loading="lazy" />';
 					html += '</div>';
 
 					html += '<div class="mpk-hotel-body">';
@@ -918,22 +1116,22 @@
 						html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="#facc15" stroke="#facc15" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
 					}
 					html += '</div>';
-					html += '<h4 class="mpk-hotel-name">' + hotel.name + '</h4>';
+					html += '<h4 class="mpk-hotel-name">' + escHtml(hotel.name) + '</h4>';
 					html += '<p class="mpk-hotel-area">';
-					html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ' + hotel.area;
+					html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ' + escHtml(hotel.area);
 					html += '</p>';
 					html += '</div>';
 
 					html += '<div class="mpk-review-block-score">';
-					html += '<span class="mpk-review-badge">' + hotel.review + '</span>';
-					html += '<span class="mpk-review-label">' + hotel.reviewLabel + '</span>';
+					html += '<span class="mpk-review-badge">' + escHtml(hotel.review) + '</span>';
+					html += '<span class="mpk-review-label">' + escHtml(hotel.reviewLabel) + '</span>';
 					html += '</div>';
 					html += '</div>';
 
 					// Amenities pills
 					html += '<div class="mpk-amenities-pills">';
 					for (var a = 0; a < (hotel.amenities || []).length; a++) {
-						html += '<span class="mpk-pill">' + hotel.amenities[a] + '</span>';
+						html += '<span class="mpk-pill">' + amenityIcon(hotel.amenities[a]) + escHtml(hotel.amenities[a]) + '</span>';
 					}
 					html += '</div>';
 					html += '</div>';
@@ -954,8 +1152,8 @@
 						var checkInLabel = hasCheckIn ? formatDate(sel.checkIn, true) : 'Pick a date';
 						var checkOutLabel = hasCheckOut ? formatDate(sel.checkOut, true) : 'Pick a date';
 
-						html += '<div class="mpk-room-item ' + (isSel ? 'selected' : '') + '" data-hotel-id="' + hotel.id + '" data-room-id="' + room.id + '">';
-						html += '<div class="mpk-room-main" data-action="toggle-room" data-hotel-id="' + hotel.id + '" data-room-id="' + room.id + '" data-location-id="' + hotel.location + '">';
+						html += '<div class="mpk-room-item ' + (isSel ? 'selected' : '') + '" data-hotel-id="' + escHtml(hotel.id) + '" data-room-id="' + escHtml(room.id) + '">';
+						html += '<div class="mpk-room-main" data-action="toggle-room" data-hotel-id="' + escHtml(hotel.id) + '" data-room-id="' + escHtml(room.id) + '" data-location-id="' + escHtml(hotel.location) + '">';
 						html += '<div class="mpk-room-left">';
 						html += '<div class="mpk-room-checkbox">';
 						if (isSel) {
@@ -963,13 +1161,13 @@
 						}
 						html += '</div>';
 						html += '<div>';
-						html += '<p class="mpk-room-title">' + room.name + '</p>';
-						html += '<p class="mpk-room-meal">' + room.meal + '</p>';
+						html += '<p class="mpk-room-title">' + escHtml(room.name) + '</p>';
+						html += '<p class="mpk-room-meal">' + escHtml(room.meal) + '</p>';
 						html += '</div>';
 						html += '</div>';
 
 						html += '<div class="mpk-room-price">';
-						html += '<span class="mpk-room-rate">$' + room.price + '</span>';
+						html += '<span class="mpk-room-rate">' + escHtml(money(roomRate(room))) + '</span>';
 						html += '<span class="mpk-room-unit">per night</span>';
 						html += '</div>';
 						html += '</div>';
@@ -977,47 +1175,41 @@
 						// Interactive Date Picker Trigger Buttons with No Auto-Fill
 						if (isSel && sel) {
 							var minDate = getEarliestAllowedDate(hotel.id, room.id);
-							var checkOutMin = sel.checkIn || minDate;
+							var checkOutMin = sel.checkIn ? addDays(sel.checkIn, 1) : addDays(minDate, 1);
 
 							html += '<div class="mpk-room-dates">';
 							html += '<div class="mpk-dates-grid">';
 
 							// Check-in trigger with overlay input
 							html += '<div class="mpk-date-field-wrap">';
-							html += '<div class="mpk-date-btn mpk-date-btn-checkin">';
+							html += '<div class="mpk-date-btn mpk-date-btn-checkin" role="button" tabindex="0" aria-haspopup="dialog">';
 							html += '<svg class="mpk-icon mpk-icon-calendar" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>';
 							html += '<div class="mpk-date-btn-content">';
 							html += '<span class="mpk-date-btn-label">Check-in</span>';
 							html += '<span class="mpk-date-btn-val ' + (hasCheckIn ? 'has-date' : 'placeholder') + '">' + checkInLabel + '</span>';
 							html += '</div>';
-							html += '<input type="date" class="mpk-date-native-overlay mpk-checkin-input" data-hotel-id="' + hotel.id + '" data-room-id="' + room.id + '" value="' + (sel.checkIn || '') + '" min="' + minDate + '" title="Choose check-in date" />';
+							html += '<input type="hidden" class="mpk-checkin-input" data-hotel-id="' + escHtml(hotel.id) + '" data-room-id="' + escHtml(room.id) + '" value="' + (sel.checkIn || '') + '" min="' + minDate + '" title="Choose check-in date" />';
 							html += '</div>';
 							html += '</div>';
 
 							// Check-out trigger with overlay input
 							html += '<div class="mpk-date-field-wrap">';
-							html += '<div class="mpk-date-btn mpk-date-btn-checkout">';
+							html += '<div class="mpk-date-btn mpk-date-btn-checkout" role="button" tabindex="0" aria-haspopup="dialog">';
 							html += '<svg class="mpk-icon mpk-icon-calendar" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>';
 							html += '<div class="mpk-date-btn-content">';
 							html += '<span class="mpk-date-btn-label">Check-out</span>';
 							html += '<span class="mpk-date-btn-val ' + (hasCheckOut ? 'has-date' : 'placeholder') + '">' + checkOutLabel + '</span>';
 							html += '</div>';
-							html += '<input type="date" class="mpk-date-native-overlay mpk-checkout-input" data-hotel-id="' + hotel.id + '" data-room-id="' + room.id + '" value="' + (sel.checkOut || '') + '" min="' + checkOutMin + '" title="Choose check-out date" />';
+							html += '<input type="hidden" class="mpk-checkout-input" data-hotel-id="' + escHtml(hotel.id) + '" data-room-id="' + escHtml(room.id) + '" value="' + (sel.checkOut || '') + '" min="' + checkOutMin + '" title="Choose check-out date" />';
 							html += '</div>';
 							html += '</div>';
 
 							html += '</div>'; // End dates-grid
 
-							if (minDate && !hasCheckIn) {
-								html += '<p class="mpk-earliest-hint">Available from ' + formatDate(minDate) + ' onwards</p>';
-							}
-
-							if (hasCheckIn && hasCheckOut && nights > 0) {
-								html += '<div class="mpk-room-stay-calc">';
-								html += '<span>🌙 ' + nights + ' ' + (nights === 1 ? 'night' : 'nights') + '</span>';
-								html += '<span class="mpk-tabular">$' + (room.price * nights) + '</span>';
-								html += '</div>';
-							}
+							html += '<div class="mpk-room-stay-calc">';
+							html += '<span class="mpk-stay-nights">' + MOON_SVG + nights + ' ' + (nights === 1 ? 'night' : 'nights') + '</span>';
+							html += '<span class="mpk-tabular">' + escHtml(money(roomRate(room) * nights * Math.max(1, state.rooms || 1))) + '</span>';
+							html += '</div>';
 							html += '</div>'; // End room-dates
 						}
 
@@ -1036,6 +1228,137 @@
 		container.innerHTML = html;
 		bindHotelEvents();
 		updateNavState();
+	}
+
+	// ------------------------------------------------------------------
+	// Calendar popover (reference: shadcn/react-day-picker look & feel)
+	// ------------------------------------------------------------------
+	var MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+	var calPop = null;
+	var calState = null;
+
+	function ymd(d) {
+		return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+	}
+
+	function parseYmd(str) {
+		if (!str) return null;
+		var p = str.split('-');
+		if (p.length < 3) return null;
+		return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+	}
+
+	function closeCalendar() {
+		if (calPop && calPop.parentNode) calPop.parentNode.removeChild(calPop);
+		calPop = null;
+		calState = null;
+		document.removeEventListener('mousedown', onCalOutside, true);
+		document.removeEventListener('keydown', onCalKey, true);
+		window.removeEventListener('resize', closeCalendar);
+		window.removeEventListener('scroll', positionCalendar, true);
+	}
+
+	function onCalOutside(e) {
+		if (!calPop) return;
+		if (calPop.contains(e.target)) return;
+		if (calState && calState.anchor && calState.anchor.contains(e.target)) return;
+		closeCalendar();
+	}
+
+	function onCalKey(e) {
+		if (e.key === 'Escape') closeCalendar();
+	}
+
+	function positionCalendar() {
+		if (!calPop || !calState) return;
+		var r = calState.anchor.getBoundingClientRect();
+		var popH = calPop.offsetHeight;
+		var popW = calPop.offsetWidth;
+		var top = r.bottom + 6;
+		if (top + popH > window.innerHeight - 8 && r.top - popH - 6 > 8) {
+			top = r.top - popH - 6;
+		}
+		var left = Math.min(Math.max(8, r.left), window.innerWidth - popW - 8);
+		calPop.style.top = Math.round(top) + 'px';
+		calPop.style.left = Math.round(left) + 'px';
+	}
+
+	function renderCalendar() {
+		if (!calPop || !calState) return;
+		var view = calState.view;
+		var year = view.getFullYear();
+		var month = view.getMonth();
+		var first = new Date(year, month, 1);
+		var last = new Date(year, month + 1, 0);
+		var start = new Date(year, month, 1 - first.getDay());
+		var end = new Date(year, month, last.getDate() + (6 - last.getDay()));
+		var todayStr = ymd(new Date());
+		var minStr = calState.min || '';
+		var valStr = calState.input.value || '';
+
+		var h = '';
+		h += '<div class="mpk-cal-head">';
+		h += '<button type="button" class="mpk-cal-nav mpk-cal-prev" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>';
+		h += '<span class="mpk-cal-caption">' + MONTHS_LONG[month] + ' ' + year + '</span>';
+		h += '<button type="button" class="mpk-cal-nav mpk-cal-next" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>';
+		h += '</div>';
+		h += '<div class="mpk-cal-grid" role="grid">';
+		var wd = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+		for (var w = 0; w < 7; w++) h += '<span class="mpk-cal-wd">' + wd[w] + '</span>';
+		for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+			var ds = ymd(d);
+			var cls = 'mpk-cal-day';
+			if (d.getMonth() !== month) cls += ' is-outside';
+			if (ds === todayStr) cls += ' is-today';
+			if (ds === valStr) cls += ' is-selected';
+			var disabled = minStr && ds < minStr;
+			h += '<button type="button" class="' + cls + '" data-date="' + ds + '"' + (disabled ? ' disabled' : '') + '>' + d.getDate() + '</button>';
+		}
+		h += '</div>';
+		calPop.innerHTML = h;
+
+		calPop.querySelector('.mpk-cal-prev').addEventListener('click', function () {
+			calState.view = new Date(year, month - 1, 1);
+			renderCalendar();
+			positionCalendar();
+		});
+		calPop.querySelector('.mpk-cal-next').addEventListener('click', function () {
+			calState.view = new Date(year, month + 1, 1);
+			renderCalendar();
+			positionCalendar();
+		});
+		var dayBtns = calPop.querySelectorAll('.mpk-cal-day');
+		for (var b = 0; b < dayBtns.length; b++) {
+			dayBtns[b].addEventListener('click', function () {
+				if (this.disabled) return;
+				var input = calState.input;
+				input.value = this.getAttribute('data-date');
+				closeCalendar();
+				input.dispatchEvent(new Event('change', { bubbles: true }));
+			});
+		}
+	}
+
+	function openCalendar(anchor, input) {
+		if (calState && calState.input === input) {
+			closeCalendar();
+			return;
+		}
+		closeCalendar();
+		var app = document.getElementById('mpk-booking-app') || document.body;
+		calPop = document.createElement('div');
+		calPop.className = 'mpk-cal-popover';
+		calPop.setAttribute('role', 'dialog');
+		var min = input.getAttribute('min') || '';
+		var base = parseYmd(input.value) || parseYmd(min) || new Date();
+		calState = { anchor: anchor, input: input, min: min, view: new Date(base.getFullYear(), base.getMonth(), 1) };
+		app.appendChild(calPop);
+		renderCalendar();
+		positionCalendar();
+		document.addEventListener('mousedown', onCalOutside, true);
+		document.addEventListener('keydown', onCalKey, true);
+		window.addEventListener('resize', closeCalendar);
+		window.addEventListener('scroll', positionCalendar, true);
 	}
 
 	function bindHotelEvents() {
@@ -1072,33 +1395,24 @@
 			});
 		}
 
-		var checkInBtns = document.querySelectorAll('.mpk-date-btn-checkin');
-		for (var cib = 0; cib < checkInBtns.length; cib++) {
-			checkInBtns[cib].addEventListener('click', function (e) {
-				var inp = this.querySelector('.mpk-checkin-input');
-				if (inp && e.target !== inp && typeof inp.showPicker === 'function') {
-					try { inp.showPicker(); } catch (err) {}
-				}
+		var dateBtns = document.querySelectorAll('.mpk-date-btn');
+		for (var db = 0; db < dateBtns.length; db++) {
+			dateBtns[db].addEventListener('click', function (e) {
+				e.preventDefault();
+				e.stopPropagation();
+				var inp = this.querySelector('input.mpk-checkin-input, input.mpk-checkout-input');
+				if (inp) openCalendar(this, inp);
 			});
-		}
-
-		var checkOutBtns = document.querySelectorAll('.mpk-date-btn-checkout');
-		for (var cob = 0; cob < checkOutBtns.length; cob++) {
-			checkOutBtns[cob].addEventListener('click', function (e) {
-				var inp = this.querySelector('.mpk-checkout-input');
-				if (inp && e.target !== inp && typeof inp.showPicker === 'function') {
-					try { inp.showPicker(); } catch (err) {}
+			dateBtns[db].addEventListener('keydown', function (e) {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					this.click();
 				}
 			});
 		}
 
 		var checkInInputs = document.querySelectorAll('.mpk-checkin-input');
 		for (var c = 0; c < checkInInputs.length; c++) {
-			checkInInputs[c].addEventListener('click', function () {
-				if (typeof this.showPicker === 'function') {
-					try { this.showPicker(); } catch (err) {}
-				}
-			});
 			checkInInputs[c].addEventListener('change', function () {
 				var hotelId = this.getAttribute('data-hotel-id');
 				var roomId = this.getAttribute('data-room-id');
@@ -1116,11 +1430,6 @@
 
 		var checkOutInputs = document.querySelectorAll('.mpk-checkout-input');
 		for (var o = 0; o < checkOutInputs.length; o++) {
-			checkOutInputs[o].addEventListener('click', function () {
-				if (typeof this.showPicker === 'function') {
-					try { this.showPicker(); } catch (err) {}
-				}
-			});
 			checkOutInputs[o].addEventListener('change', function () {
 				var hotelId = this.getAttribute('data-hotel-id');
 				var roomId = this.getAttribute('data-room-id');
@@ -1319,8 +1628,9 @@
 			var staysHtml = '';
 			var locKeys = Object.keys(groupedLocs);
 			if (locKeys.length === 0) {
-				staysHtml = '<p style="font-size: 13px; color: var(--mpk-text-muted); font-style: italic;">No rooms selected.</p>';
+				staysHtml = '<p class="mpk-empty-note">No rooms selected.</p>';
 			} else {
+				staysHtml += '<div class="mpk-stays-list">';
 				for (var k = 0; k < locKeys.length; k++) {
 					var locId = locKeys[k];
 					var loc = findLocation(locId);
@@ -1332,37 +1642,37 @@
 						}
 					}
 
-					staysHtml += '<div style="border: 1px solid var(--mpk-border); border-radius: 16px; padding: 16px 20px; margin-bottom: 14px; background: #f8fafc;">';
-					staysHtml += '<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">';
-					staysHtml += '<span style="font-weight: 600; font-size: 14px; color: var(--mpk-text); display: flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ' + (loc ? loc.name : locId) + '</span>';
-					staysHtml += '<span style="font-size: 12px; color: var(--mpk-text-muted);">' + locNights + ' nights</span>';
+					staysHtml += '<div class="mpk-stay-group">';
+					staysHtml += '<div class="mpk-stay-group-head">';
+					staysHtml += '<span class="mpk-stay-group-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>';
+					staysHtml += '<p class="mpk-stay-group-name">' + escHtml(loc ? loc.name : locId) + '</p>';
+					staysHtml += '<span class="mpk-stay-group-nights">' + locNights + ' nights</span>';
 					staysHtml += '</div>';
+					staysHtml += '<div class="mpk-stay-items">';
 
 					for (var sIdx = 0; sIdx < locSelections.length; sIdx++) {
 						var item = locSelections[sIdx];
 						var hotel = findHotel(item.hotelId);
 						var room = hotel ? findRoom(hotel, item.roomId) : null;
 						var rNights = (item.checkIn && item.checkOut) ? diffDays(item.checkIn, item.checkOut) : 0;
-						var roomTotal = room ? (room.price * rNights) : 0;
+						var roomTotal = room ? (roomRate(room) * rNights * Math.max(1, state.rooms || 1)) : 0;
 
-						staysHtml += '<div style="background: #ffffff; border: 1px solid var(--mpk-border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">';
+						staysHtml += '<div class="mpk-stay-item">';
 						staysHtml += '<div>';
-						staysHtml += '<p style="margin: 0; font-weight: 600; font-size: 14px; color: var(--mpk-text);">' + (hotel ? hotel.name : '') + '</p>';
-						staysHtml += '<p style="margin: 2px 0 0; font-size: 12px; color: var(--mpk-text-muted);">';
-						staysHtml += (room ? room.name : '') + ' · ' + (room ? room.meal : '') + ' · ' + rNights + ' ' + (rNights === 1 ? 'night' : 'nights');
-						staysHtml += '</p>';
+						staysHtml += '<p class="mpk-stay-hotel">' + escHtml(hotel ? hotel.name : '') + '</p>';
+						staysHtml += '<p class="mpk-stay-meta">' + escHtml(room ? room.name : '') + ' · ' + escHtml(room ? room.meal : '') + ' · ' + rNights + ' ' + (rNights === 1 ? 'night' : 'nights') + '</p>';
 						if (item.checkIn && item.checkOut) {
-							staysHtml += '<p style="margin: 3px 0 0; font-size: 11px; color: var(--mpk-text-muted);">';
-							staysHtml += formatDate(item.checkIn) + ' → ' + formatDate(item.checkOut);
-							staysHtml += '</p>';
+							staysHtml += '<p class="mpk-stay-dates">' + formatDate(item.checkIn) + ' → ' + formatDate(item.checkOut) + '</p>';
 						}
 						staysHtml += '</div>';
-						staysHtml += '<div style="font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums;">$' + roomTotal.toFixed(2) + '</div>';
+						staysHtml += '<p class="mpk-stay-price mpk-tabular">' + escHtml(money(roomTotal)) + '</p>';
 						staysHtml += '</div>';
 					}
 
 					staysHtml += '</div>';
+					staysHtml += '</div>';
 				}
+				staysHtml += '</div>';
 			}
 			staysContainer.innerHTML = staysHtml;
 		}
@@ -1397,16 +1707,16 @@
 						var sh = findHotel(sItems[sm].hotelId);
 						var sr = sh ? findRoom(sh, sItems[sm].roomId) : null;
 						var sn = (sItems[sm].checkIn && sItems[sm].checkOut) ? diffDays(sItems[sm].checkIn, sItems[sm].checkOut) : 0;
-						if (sr && sn > 0) sLocTotal += sr.price * sn;
+						if (sr && sn > 0) sLocTotal += roomRate(sr) * sn * pricing.rooms;
 					}
 
 					pHtml += '<div class="mpk-summary-loc-card">';
 					pHtml += '<div class="mpk-summary-loc-header">';
 					pHtml += '<div class="mpk-summary-loc-title">';
 					pHtml += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mpk-primary)" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';
-					pHtml += '<span>' + (sLoc ? sLoc.name : sLocId) + '</span>';
+					pHtml += '<span>' + escHtml(sLoc ? sLoc.name : sLocId) + '</span>';
 					pHtml += '</div>';
-					pHtml += '<span class="mpk-summary-loc-price tabular-nums">$' + sLocTotal.toFixed(2) + '</span>';
+					pHtml += '<span class="mpk-summary-loc-price tabular-nums">' + escHtml(money(sLocTotal, true)) + '</span>';
 					pHtml += '</div>';
 
 					pHtml += '<div class="mpk-summary-room-items">';
@@ -1415,18 +1725,18 @@
 						var sHotel = findHotel(sItem.hotelId);
 						var sRoom = sHotel ? findRoom(sHotel, sItem.roomId) : null;
 						var sNights = (sItem.checkIn && sItem.checkOut) ? diffDays(sItem.checkIn, sItem.checkOut) : 0;
-						var sPrice = sRoom ? sRoom.price : 0;
-						var sItemTotal = sPrice * sNights;
+						var sPrice = roomRate(sRoom);
+						var sItemTotal = sPrice * sNights * pricing.rooms;
 
 						pHtml += '<div class="mpk-summary-room-row">';
 						pHtml += '<div class="mpk-summary-room-meta">';
-						pHtml += '<span class="mpk-summary-hotel-name">' + (sHotel ? sHotel.name : '') + '</span>';
+						pHtml += '<span class="mpk-summary-hotel-name">' + escHtml(sHotel ? sHotel.name : '') + '</span>';
 						pHtml += '<span class="mpk-summary-sep">·</span>';
-						pHtml += '<span>' + (sRoom ? sRoom.name : '') + '</span>';
+						pHtml += '<span>' + escHtml(sRoom ? sRoom.name : '') + '</span>';
 						pHtml += '<span class="mpk-summary-sep">·</span>';
-						pHtml += '<span>' + sNights + ' ' + (sNights === 1 ? 'night' : 'nights') + ' × $' + sPrice + '</span>';
+						pHtml += '<span>' + sNights + ' ' + (sNights === 1 ? 'night' : 'nights') + ' × ' + escHtml(money(sPrice)) + (pricing.rooms > 1 ? ' × ' + pricing.rooms + ' rooms' : '') + '</span>';
 						pHtml += '</div>';
-						pHtml += '<span class="mpk-summary-room-total tabular-nums">$' + sItemTotal.toFixed(2) + '</span>';
+						pHtml += '<span class="mpk-summary-room-total tabular-nums">' + escHtml(money(sItemTotal, true)) + '</span>';
 						pHtml += '</div>';
 					}
 					pHtml += '</div>'; // End mpk-summary-room-items
@@ -1434,11 +1744,31 @@
 				}
 			}
 
+			// Transparent price breakdown
+			if (pricing.subtotal > 0) {
+				var bRows = [['Rooms', pricing.roomCost]];
+				if (pricing.extraAdultCost > 0) bRows.push(['Extra adults (' + pricing.extraAdults + ')', pricing.extraAdultCost]);
+				if (pricing.childCost > 0) bRows.push(['Children (' + state.children + ')', pricing.childCost]);
+				if (state.infants > 0) bRows.push(['Infants (' + state.infants + ')', null]);
+				bRows.push(['Tax', pricing.tax]);
+				if (pricing.extras > 0) bRows.push(['Extra charges', pricing.extras]);
+				if (pricing.service > 0) bRows.push(['Service fee', pricing.service]);
+
+				pHtml += '<div class="mpk-summary-room-items mpk-summary-breakdown" style="margin: 4px 0 12px;">';
+				for (var bi = 0; bi < bRows.length; bi++) {
+					pHtml += '<div class="mpk-summary-room-row">';
+					pHtml += '<div class="mpk-summary-room-meta"><span>' + escHtml(bRows[bi][0]) + '</span></div>';
+					pHtml += '<span class="mpk-summary-room-total tabular-nums">' + (bRows[bi][1] === null ? 'Free' : escHtml(money(bRows[bi][1], true))) + '</span>';
+					pHtml += '</div>';
+				}
+				pHtml += '</div>';
+			}
+
 			// Clean Grand Total Banner matching Step4Review.tsx
 			pHtml += '<div class="mpk-grand-total-banner">';
 			pHtml += '<div>';
 			pHtml += '<p class="mpk-grand-total-label">Grand Total</p>';
-			pHtml += '<p class="mpk-grand-total-amount">$' + pricing.total.toFixed(2) + '</p>';
+			pHtml += '<p class="mpk-grand-total-amount">' + escHtml(money(pricing.total, true)) + '</p>';
 			pHtml += '<p class="mpk-grand-total-note">Price is valid for BD passport holders only.</p>';
 			pHtml += '</div>';
 			pHtml += '<div class="mpk-grand-total-badge">';
@@ -1462,7 +1792,7 @@
 			}
 
 			if (selectedHotelIds.length === 0) {
-				accPackageBody.innerHTML = '<p style="font-style: italic; color: var(--mpk-text-muted); margin: 0;">Select a hotel to see its inclusions and exclusions.</p>';
+				accPackageBody.innerHTML = '<p class="mpk-empty-note">Select a hotel to see its inclusions and exclusions.</p>';
 			} else {
 				var incHtml = '';
 				for (var sh = 0; sh < selectedHotelIds.length; sh++) {
@@ -1479,45 +1809,42 @@
 						}
 					}
 
-					var includesList = [
-						'Return airport / speedboat transfers',
-						'Daily housekeeping',
-						'Welcome drink on arrival',
-						'24/7 concierge support'
-					];
+					// Includes/excludes come from admin Settings (fallback: defaults).
+					// Reference order: meal plan(s), first base include, hotel amenities, remaining base includes.
+					var pkgSet = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
+					var baseInc = (pkgSet.hotel_includes_base && pkgSet.hotel_includes_base.length) ? pkgSet.hotel_includes_base.slice() : ['Return airport / speedboat transfers', 'Daily housekeeping', 'Welcome drink on arrival', '24/7 concierge support'];
+					var includesList = [];
 					for (var mIdx = 0; mIdx < meals.length; mIdx++) {
-						includesList.unshift(meals[mIdx] + ' meal plan');
+						includesList.push(meals[mIdx] + ' meal plan');
 					}
+					if (baseInc.length) includesList.push(baseInc[0]);
 					for (var am = 0; am < (hObj.amenities || []).length; am++) {
 						includesList.push(hObj.amenities[am]);
 					}
+					for (var bi2 = 1; bi2 < baseInc.length; bi2++) {
+						includesList.push(baseInc[bi2]);
+					}
 
-					var excludesList = [
-						'International flights',
-						'Travel insurance',
-						'Personal expenses',
-						'Tips & gratuities',
-						'Optional excursions'
-					];
+					var excludesList = (pkgSet.base_excludes && pkgSet.base_excludes.length) ? pkgSet.base_excludes.slice() : ['International flights', 'Travel insurance', 'Personal expenses', 'Tips & gratuities', 'Optional excursions'];
 
-					incHtml += '<div style="margin-bottom: 20px; border: 1px solid var(--mpk-border); border-radius: 14px; padding: 16px; background: #f8fafc;">';
-					incHtml += '<h5 style="font-size: 15px; font-weight: 600; margin: 0 0 12px; color: var(--mpk-text);">' + hObj.name + '</h5>';
-					incHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
+					incHtml += '<div class="mpk-pkg-hotel">';
+					incHtml += '<p class="mpk-pkg-hotel-name">' + escHtml(hObj.name) + '</p>';
+					incHtml += '<div class="mpk-pkg-grid">';
 
 					incHtml += '<div>';
-					incHtml += '<p style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #059669; margin: 0 0 8px;">Includes</p>';
-					incHtml += '<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--mpk-text-muted); line-height: 1.6;">';
+					incHtml += '<p class="mpk-pkg-label mpk-pkg-label-inc">Includes</p>';
+					incHtml += '<ul class="mpk-pkg-list mpk-pkg-list-inc">';
 					for (var inc = 0; inc < includesList.length; inc++) {
-						incHtml += '<li>' + includesList[inc] + '</li>';
+						incHtml += '<li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>' + escHtml(includesList[inc]) + '</span></li>';
 					}
 					incHtml += '</ul>';
 					incHtml += '</div>';
 
 					incHtml += '<div>';
-					incHtml += '<p style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #dc2626; margin: 0 0 8px;">Excludes</p>';
-					incHtml += '<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--mpk-text-muted); line-height: 1.6;">';
+					incHtml += '<p class="mpk-pkg-label mpk-pkg-label-exc">Excludes</p>';
+					incHtml += '<ul class="mpk-pkg-list mpk-pkg-list-exc">';
 					for (var exc = 0; exc < excludesList.length; exc++) {
-						incHtml += '<li>' + excludesList[exc] + '</li>';
+						incHtml += '<li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg><span>' + escHtml(excludesList[exc]) + '</span></li>';
 					}
 					incHtml += '</ul>';
 					incHtml += '</div>';
@@ -1538,6 +1865,7 @@
 				if (this.classList.contains('disabled')) return;
 				var method = this.getAttribute('data-payment-method');
 				state.paymentMethod = method;
+				state.submitError = '';
 
 				for (var j = 0; j < paymentCards.length; j++) {
 					paymentCards[j].classList.remove('selected');
@@ -1560,46 +1888,45 @@
 		var instructionsEl = document.getElementById('mpk-payment-instructions-body');
 
 		if (codeEl) codeEl.textContent = state.confirmationCode;
-		if (emailEl) emailEl.textContent = state.form.email || 'your email';
+		if (emailEl) {
+			emailEl.textContent = state.form.email || 'your email';
+			if (state.form.email) emailEl.setAttribute('href', 'mailto:' + state.form.email);
+		}
 
 		var pricing = calcPricing();
-		if (amountEl) amountEl.textContent = '$' + pricing.total.toFixed(2);
+		var confirmedTotal = (typeof state.serverTotal === 'number') ? state.serverTotal : pricing.total;
+		if (amountEl) amountEl.textContent = money(confirmedTotal, true);
 
 		if (instructionsEl) {
+			// Payment & concierge details come from admin Settings (same source as the email)
+			var paySettings = (window.MPK_INITIAL_DATA && window.MPK_INITIAL_DATA.settings) ? window.MPK_INITIAL_DATA.settings : {};
 			var instHtml = '';
+			var instRow = function (k, v) { return v ? '<p><span class="mpk-inst-k">' + k + '</span> ' + escHtml(v) + '</p>' : ''; };
 			if (state.paymentMethod === 'office') {
-				instHtml += '<div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">';
-				instHtml += '<div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(2, 132, 199, 0.1); color: var(--mpk-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg></div>';
-				instHtml += '<div>';
-				instHtml += '<p style="font-weight: 600; margin: 0 0 2px;">Office Visit Payment</p>';
-				instHtml += '<p style="font-size: 13px; color: var(--mpk-text-muted); margin: 0;">Please visit our office to complete payment within 48 hours to secure your booking.</p>';
-				instHtml += '</div>';
-				instHtml += '</div>';
-
-				instHtml += '<div style="background: #f8fafc; border: 1px solid var(--mpk-border); border-radius: 12px; padding: 14px 18px; font-size: 13px; line-height: 1.6;">';
-				instHtml += '<p style="margin: 0;"><strong>Address:</strong> Boduthakurufaanu Magu, Malé 20026, Maldives</p>';
-				instHtml += '<p style="margin: 0;"><strong>Phone:</strong> +000 000 0000</p>';
-				instHtml += '<p style="margin: 0;"><strong>Email:</strong> info@example.com</p>';
-				instHtml += '<p style="margin: 0;"><strong>Hours:</strong> Sun–Thu, 9:00 AM – 6:00 PM</p>';
+				instHtml += '<div class="mpk-inst-row"><span class="mpk-inst-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg></span><div>';
+				instHtml += '<p class="mpk-inst-title">Office Visit Payment</p>';
+				instHtml += '<p class="mpk-inst-desc">Please visit our office to complete payment within 48 hours to secure your booking.</p>';
+				instHtml += '</div></div>';
+				instHtml += '<div class="mpk-inst-details">';
+				instHtml += instRow('Address:', paySettings.office_address);
+				instHtml += instRow('Phone:', paySettings.support_phone);
+				instHtml += instRow('Email:', paySettings.support_email);
+				instHtml += instRow('Hours:', paySettings.office_hours);
 				instHtml += '</div>';
 			} else if (state.paymentMethod === 'bank') {
-				instHtml += '<div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">';
-				instHtml += '<div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(2, 132, 199, 0.1); color: var(--mpk-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" x2="22" y1="22" y2="22"/><line x1="3" x2="21" y1="6" y2="6"/><path d="M4 18v-8"/><path d="M8 18v-8"/><path d="M12 18v-8"/><path d="M16 18v-8"/><path d="M20 18v-8"/><polygon points="12 2 20 6 4 6 12 2"/></svg></div>';
-				instHtml += '<div>';
-				instHtml += '<p style="font-weight: 600; margin: 0 0 2px;">Bank Transfer</p>';
-				instHtml += '<p style="font-size: 13px; color: var(--mpk-text-muted); margin: 0;">Please transfer the total amount to the account below. Your booking is confirmed upon receipt.</p>';
-				instHtml += '</div>';
-				instHtml += '</div>';
-
-				instHtml += '<div style="background: #f8fafc; border: 1px solid var(--mpk-border); border-radius: 12px; padding: 14px 18px; font-size: 13px; line-height: 1.6;">';
-				instHtml += '<p style="margin: 0;"><strong>Bank:</strong> Bank of Maldives</p>';
-				instHtml += '<p style="margin: 0;"><strong>Account Name:</strong> Maldives Luxury Travel Pvt Ltd</p>';
-				instHtml += '<p style="margin: 0;"><strong>Account Number:</strong> 7730-000123-456</p>';
-				instHtml += '<p style="margin: 0;"><strong>SWIFT:</strong> MALBMVMV</p>';
-				instHtml += '<p style="margin: 8px 0 0; font-size: 12px; color: var(--mpk-text-muted); font-style: italic;">Please include your booking reference (' + state.confirmationCode + ') in the transfer note.</p>';
+				instHtml += '<div class="mpk-inst-row"><span class="mpk-inst-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg></span><div>';
+				instHtml += '<p class="mpk-inst-title">Bank Transfer</p>';
+				instHtml += '<p class="mpk-inst-desc">Please transfer the total amount to the account below. Your booking is confirmed upon receipt.</p>';
+				instHtml += '</div></div>';
+				instHtml += '<div class="mpk-inst-details">';
+				instHtml += instRow('Bank:', paySettings.bank_name);
+				instHtml += instRow('Account Name:', paySettings.bank_account_name);
+				instHtml += instRow('Account Number:', paySettings.bank_account_no);
+				instHtml += instRow('SWIFT:', paySettings.bank_swift);
+				instHtml += '<p class="mpk-inst-note">Please include your booking reference (' + escHtml(state.confirmationCode) + ') in the transfer note.</p>';
 				instHtml += '</div>';
 			} else {
-				instHtml = '<p style="font-style: italic; color: var(--mpk-text-muted);">No payment method selected.</p>';
+				instHtml = '<p class="mpk-empty-note">No payment method selected.</p>';
 			}
 			instructionsEl.innerHTML = instHtml;
 		}
@@ -1619,9 +1946,20 @@
 		}
 	}
 
+	// Fetch a fresh booking nonce (resolves to '' on failure -> falls back to the page nonce)
+	function getFreshNonce(ajaxUrl) {
+		var nd = new FormData();
+		nd.append('action', 'mpk_get_nonce');
+		return fetch(ajaxUrl, { method: 'POST', body: nd, credentials: 'same-origin', cache: 'no-store' })
+			.then(function (r) { return r.json(); })
+			.then(function (res) { return (res && res.success && res.data && res.data.nonce) ? res.data.nonce : ''; })
+			.catch(function () { return ''; });
+	}
+
 	// AJAX Booking Submission for Step 4
 	function submitBooking() {
 		if (isSubmitting) return;
+		state.submitError = '';
 
 		var btnNext = document.querySelector('.mpk-btn-next');
 		var nextLabel = document.getElementById('mpk-btn-next-label');
@@ -1656,7 +1994,7 @@
 		formData.append('lead_email', (state.form && state.form.email) ? state.form.email.trim() : '');
 		formData.append('lead_phone', (state.form && state.form.mobile) ? state.form.mobile.trim() : '');
 		formData.append('lead_country', (state.form && state.form.country) ? state.form.country.trim() : '');
-		formData.append('passport_no', (state.form && state.form.passport) ? state.form.passport.trim() : ((state.form && state.form.fileName) ? state.form.fileName : ''));
+		formData.append('passport_no', (state.form && state.form.passport) ? state.form.passport.trim() : '');
 		var domFileInput = document.getElementById('mpk-passport-file');
 		var passportFileToUpload = state.passportFile || (domFileInput && domFileInput.files && domFileInput.files[0] ? domFileInput.files[0] : null);
 		if (passportFileToUpload) {
@@ -1712,14 +2050,31 @@
 		formData.append('infants', state.infants || 0);
 		formData.append('rooms_count', state.rooms || 1);
 
+		// Raw selections: server re-validates rooms/dates and recalculates the price
+		var selPayload = [];
+		for (var sp = 0; sp < state.selections.length; sp++) {
+			selPayload.push({
+				hotel_id: state.selections[sp].hotelId,
+				room_id: state.selections[sp].roomId,
+				location: state.selections[sp].location,
+				check_in: state.selections[sp].checkIn || '',
+				check_out: state.selections[sp].checkOut || ''
+			});
+		}
+		formData.append('selections', JSON.stringify(selPayload));
+
 		var pricing = calcPricing();
 		formData.append('grand_total', pricing.total ? pricing.total.toFixed(2) : '0.00');
 
-		// Send AJAX POST
-		fetch(ajaxUrl, {
-			method: 'POST',
-			body: formData,
-			credentials: 'same-origin'
+		// Send AJAX POST (refresh nonce first so cached pages never submit an expired one)
+		getFreshNonce(ajaxUrl)
+		.then(function (freshNonce) {
+			if (freshNonce) formData.set('nonce', freshNonce);
+			return fetch(ajaxUrl, {
+				method: 'POST',
+				body: formData,
+				credentials: 'same-origin'
+			});
 		})
 		.then(function (response) {
 			return response.json();
@@ -1728,22 +2083,16 @@
 			isSubmitting = false;
 			if (result && result.success && result.data && result.data.reference_id) {
 				state.confirmationCode = result.data.reference_id;
+				state.serverTotal = (typeof result.data.grand_total === 'number') ? result.data.grand_total : null;
 				setStep(5);
 			} else {
-				var errMsg = (result && result.data && result.data.message) ? result.data.message : 'Booking submission failed. Please try again.';
-				if (hint) {
-					hint.textContent = errMsg;
-					hint.style.color = '#dc2626';
-				}
+				state.submitError = (result && result.data && result.data.message) ? result.data.message : 'Booking submission failed. Please try again.';
 				updateNavState();
 			}
 		})
 		.catch(function (error) {
 			isSubmitting = false;
-			if (hint) {
-				hint.textContent = 'Server connection error. Please try again.';
-				hint.style.color = '#dc2626';
-			}
+			state.submitError = 'Server connection error. Please try again.';
 			updateNavState();
 		});
 	}
